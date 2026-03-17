@@ -1,5 +1,6 @@
 import { SaveSystem } from '../utils/SaveSystem.js';
 import { EquipmentManager, RARITIES } from '../utils/EquipmentManager.js';
+import { SummonManager, SUMMON_CONFIG } from '../utils/SummonManager.js';
 
 export default class UIScene extends Phaser.Scene {
     constructor() {
@@ -19,7 +20,9 @@ export default class UIScene extends Phaser.Scene {
         this.skillBars = [];
         this.skillButtons = [];
         this.equipment = new EquipmentManager();
+        this.summonManager = new SummonManager();
         this.isEquipmentOpen = false;
+        this.isSummonOpen = false;
 
         // Debug text
         this.debugText = this.add.text(w / 2, 85, '', { fontSize: '10px', fill: '#00ff00' }).setOrigin(0.5).setAlpha(0);
@@ -176,7 +179,7 @@ export default class UIScene extends Phaser.Scene {
             { name: 'Equipment', icon: '⚔️' },
             { name: 'Costume', icon: '🐕' },
             { name: 'Skill', icon: '📖' },
-            { name: 'Spirit', icon: '🐉' },
+            { name: 'Summon', icon: '✨' },
             { name: 'Adventure', icon: '🧭' },
             { name: 'Shop', icon: '💎' }
         ];
@@ -195,6 +198,8 @@ export default class UIScene extends Phaser.Scene {
             nbg.on('pointerdown', () => {
                 if (item.name === 'Equipment') {
                     this.showEquipmentMenu();
+                } else if (item.name === 'Summon') {
+                    this.showSummonMenu();
                 } else {
                     // Other tabs...
                 }
@@ -507,6 +512,7 @@ export default class UIScene extends Phaser.Scene {
             console.error('UIScene Update Error:', err);
         }
     }
+
     showEquipmentMenu() {
         if (this.isEquipmentOpen) return;
         this.isEquipmentOpen = true;
@@ -685,5 +691,148 @@ export default class UIScene extends Phaser.Scene {
         if (game && game.applyEquipmentStats) {
             game.applyEquipmentStats();
         }
+    }
+
+    showSummonMenu() {
+        if (this.isSummonOpen) return;
+        this.isSummonOpen = true;
+
+        const w = this.scale.width;
+        const h = this.scale.height;
+
+        const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive();
+        const panel = this.add.container(w / 2, h / 2);
+
+        const bg = this.add.rectangle(0, 0, 700, 520, 0x1a1a2e).setStrokeStyle(4, 0x554488);
+        const title = this.add.text(0, -230, 'SUMMONING', { fontSize: '36px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+
+        const closeBtn = this.add.text(320, -230, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
+        closeBtn.on('pointerdown', () => {
+            overlay.destroy();
+            panel.destroy();
+            this.isSummonOpen = false;
+        });
+
+        panel.add([bg, title, closeBtn]);
+
+        const categories = [
+            { id: 'weapon', name: 'Waffen', icon: '⚔️' },
+            { id: 'shield', name: 'Schilde', icon: '🛡️' },
+            { id: 'necklace', name: 'Halsketten', icon: '📿' },
+            { id: 'skill', name: 'Skills', icon: '📖' }
+        ];
+
+        categories.forEach((cat, i) => {
+            this.createSummonCard(panel, cat, 0, -140 + i * 105);
+        });
+    }
+
+    createSummonCard(panel, cat, x, y) {
+        const cardW = 640;
+        const cardH = 95;
+        const data = this.summonManager.banners[cat.id];
+
+        const cardBg = this.add.rectangle(x, y, cardW, cardH, 0x25253a).setStrokeStyle(1, 0x444466).setOrigin(0.5);
+        const icon = this.add.text(x - cardW / 2 + 40, y, cat.icon, { fontSize: '32px' }).setOrigin(0.5);
+        const nameText = this.add.text(x - cardW / 2 + 80, y - 15, `${cat.name} Lv.${data.level}`, { fontSize: '18px', fill: '#fff', fontStyle: 'bold' });
+
+        // XP Bar
+        const barW = 200;
+        const barH = 10;
+        const xpRatio = data.xp / SUMMON_CONFIG.XP_TO_LEVEL;
+        const barX = x - cardW / 2 + 80;
+        const barY = y + 15;
+        const xpBg = this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000).setOrigin(0.5);
+        const xpFill = this.add.rectangle(barX, barY - barH / 2, barW * xpRatio, barH, 0xaa44ff).setOrigin(0, 0);
+        const xpText = this.add.text(barX + barW + 10, barY, `${data.xp}/${SUMMON_CONFIG.XP_TO_LEVEL}`, { fontSize: '12px', fill: '#aaa' }).setOrigin(0, 0.5);
+
+        panel.add([cardBg, icon, nameText, xpBg, xpFill, xpText]);
+
+        // Buttons
+        const createBtn = (bx, label, cost, amount) => {
+            const btn = this.add.rectangle(bx, y, 100, 60, 0x442266).setStrokeStyle(2, 0xaa44ff).setInteractive();
+            const txt = this.add.text(bx, y - 10, label, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            const cst = this.add.text(bx, y + 12, `💎 ${cost}`, { fontSize: '12px', fill: '#00ffff' }).setOrigin(0.5);
+            
+            btn.on('pointerdown', () => this.executeSummon(cat.id, amount));
+            btn.on('pointerover', () => btn.setFillStyle(0x553377));
+            btn.on('pointerout', () => btn.setFillStyle(0x442266));
+
+            panel.add([btn, txt, cst]);
+        };
+
+        createBtn(x + 100, 'x10', SUMMON_CONFIG.COST_X10, 10);
+        createBtn(x + 220, 'x30', SUMMON_CONFIG.COST_X30, 30);
+    }
+
+    executeSummon(category, amount) {
+        const currentGems = Number(this.stats.gems) || 0;
+        const cost = amount === 10 ? SUMMON_CONFIG.COST_X10 : SUMMON_CONFIG.COST_X30;
+
+        if (currentGems < cost) {
+            this.cameras.main.shake(100, 0.005);
+            return;
+        }
+
+        const pullRes = this.summonManager.pull(category, amount, currentGems);
+        if (pullRes.success) {
+            this.stats.gems -= pullRes.cost;
+            this.updateStats(this.stats);
+            SaveSystem.save(this.stats);
+
+            // Add to inventory
+            pullRes.items.forEach(item => {
+                this.equipment.inventory.push(item);
+            });
+            this.equipment.save();
+
+            this.showSummonResults(pullRes.items);
+        }
+    }
+
+    showSummonResults(items) {
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.95).setInteractive().setDepth(3000);
+        const container = this.add.container(w / 2, h / 2).setDepth(3001);
+
+        const title = this.add.text(0, -250, 'SUMMON RESULTS', { fontSize: '32px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+        const okBtn = this.add.rectangle(0, 260, 150, 50, 0x228833).setInteractive().setStrokeStyle(2, 0xffffff);
+        const okText = this.add.text(0, 260, 'OK', { fontSize: '20px', fill: '#fff' }).setOrigin(0.5);
+
+        container.add([title, okBtn, okText]);
+
+        const cols = items.length === 10 ? 5 : 6;
+        const spacing = 95;
+        const startX = -((Math.min(items.length, cols) - 1) * spacing) / 2;
+        const startY = items.length > 20 ? -180 : -100;
+
+        items.forEach((item, i) => {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const ix = startX + col * spacing;
+            const iy = startY + row * spacing;
+
+            const rarityInfo = RARITIES[item.rarity];
+            const itemBg = this.add.rectangle(ix, iy, 75, 75, 0x222233).setStrokeStyle(2, rarityInfo.color).setScale(0);
+            const icon = this.add.text(ix, iy, item.icon, { fontSize: '32px' }).setOrigin(0.5).setScale(0);
+
+            container.add([itemBg, icon]);
+
+            this.tweens.add({
+                targets: [itemBg, icon],
+                scale: 1,
+                duration: 300,
+                delay: i * 50,
+                ease: 'Back.Out'
+            });
+        });
+
+        okBtn.on('pointerdown', () => {
+            overlay.destroy();
+            container.destroy();
+            this.isSummonOpen = false;
+            this.showSummonMenu(); 
+        });
     }
 }
