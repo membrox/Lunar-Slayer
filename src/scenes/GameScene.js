@@ -1,5 +1,6 @@
 import { drawPlayerOnGraphics, drawSwordOnGraphics, drawEnemyOnGraphics } from '../utils/DrawHelpers.js';
 import { SaveSystem } from '../utils/SaveSystem.js';
+import { EquipmentManager } from '../utils/EquipmentManager.js';
 
 // Enemy type pools per stage tier
 const ENEMY_POOLS = [
@@ -54,6 +55,12 @@ export default class GameScene extends Phaser.Scene {
 
         this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
         this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
+
+        // Store base stats for equipment calculation
+        this.baseStats = JSON.parse(JSON.stringify(this.playerStats));
+        
+        this.equipment = new EquipmentManager();
+        this.applyEquipmentStats(true);
     }
 
     create() {
@@ -201,6 +208,14 @@ export default class GameScene extends Phaser.Scene {
             drawSwordOnGraphics(this.weaponGfx, 30, 0, classIndex);
             this.playerContainer.add([this.playerGfx, this.weaponGfx]);
         }
+
+        // ── Equipment Visual Layers ──────────────────────────────────────────
+        // Using placeholders until specific assets are provided
+        this.hatLayer = this.add.text(0, -50, '', { fontSize: '24px' }).setOrigin(0.5);
+        this.armorLayer = this.add.text(0, 0, '', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.5);
+        this.playerContainer.add([this.armorLayer, this.hatLayer]);
+
+        this.updateEquipmentVisuals();
 
         // Physics on invisible rectangle
         this.playerPhysics = this.add.rectangle(px, py, 36, 68, 0x000000, 0);
@@ -915,5 +930,103 @@ export default class GameScene extends Phaser.Scene {
                 });
             });
         });
+    }
+
+    buyBaseUpgrade(id, increment) {
+        if (!this.baseStats) return;
+        
+        if (id === 'damage') {
+            this.baseStats.attack += increment;
+            this.baseStats.damageLevel = (this.baseStats.damageLevel || 1) + 1;
+        } else if (id === 'hp') {
+            this.baseStats.maxHp += increment;
+            this.baseStats.hp += increment;
+            this.baseStats.hpLevel = (this.baseStats.hpLevel || 1) + 1;
+        } else if (id === 'hpRegen') {
+            this.baseStats.hpRegen = (this.baseStats.hpRegen || 0) + increment;
+            this.baseStats.hpRegenLevel = (this.baseStats.hpRegenLevel || 1) + 1;
+        } else if (id === 'crit') {
+            this.baseStats.crit = (this.baseStats.crit || 0.05) + increment;
+            this.baseStats.critLevel = (this.baseStats.critLevel || 1) + 1;
+        }
+
+        // Increment gold is usually handled in UIScene, but we sync it here
+        this.baseStats.gold = this.playerStats.gold;
+
+        // Always apply equipment on top of NEW base
+        this.applyEquipmentStats();
+        
+        // Save base stats
+        SaveSystem.save(this.baseStats);
+    }
+
+    applyEquipmentStats(isInitial = false) {
+        if (!this.equipment || !this.baseStats) return;
+        
+        const bonuses = this.equipment.getBonusStats();
+        
+        // Calculate new playerStats from baseStats + bonuses
+        this.playerStats.attack = this.baseStats.attack + (bonuses.attack || 0);
+        this.playerStats.maxHp = this.baseStats.maxHp + (bonuses.hp || 0);
+        this.playerStats.maxMana = this.baseStats.maxMana + (bonuses.mana || 0);
+        this.playerStats.defense = this.baseStats.defense + (bonuses.defense || 0);
+        this.playerStats.hpRegen = (this.baseStats.hpRegen || 0) + (bonuses.hpRegen || 0);
+        this.playerStats.crit = (this.baseStats.crit || 0.05) + (bonuses.crit || 0);
+        
+        // Clamp current hp/mana to new maxes
+        this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
+        this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
+        
+        // Levels should be copied too for UI
+        this.playerStats.damageLevel = this.baseStats.damageLevel;
+        this.playerStats.hpLevel = this.baseStats.hpLevel;
+        this.playerStats.hpRegenLevel = this.baseStats.hpRegenLevel;
+        this.playerStats.critLevel = this.baseStats.critLevel;
+        this.playerStats.gold = this.baseStats.gold;
+        
+        this.updateEquipmentVisuals();
+        
+        // Refresh UI
+        const ui = this.scene.get('UIScene');
+        if (ui && ui.updateStats) {
+            ui.updateStats(this.playerStats, this.currentStage, this.enemiesKilled, this.totalEnemies);
+        }
+    }
+
+    updateEquipmentVisuals() {
+        if (!this.equipment || !this.playerContainer) return;
+        
+        const eq = this.equipment.equipped;
+        
+        // Update Hat
+        if (this.hatLayer) {
+            if (eq.helmet) {
+                this.hatLayer.setText(eq.helmet.icon || '👑').setVisible(true);
+            } else {
+                this.hatLayer.setVisible(false);
+            }
+        }
+
+        // Update Armor
+        if (this.armorLayer) {
+            if (eq.armor) {
+                this.armorLayer.setText(eq.armor.icon || '🛡️').setVisible(true);
+            } else {
+                this.armorLayer.setVisible(false);
+            }
+        }
+
+        // Update Weapon Visuals
+        if (eq.weapon) {
+            if (!this.weaponSpriteLayer) {
+                this.weaponSpriteLayer = this.add.text(30, -5, '', { fontSize: '32px' }).setOrigin(0.5);
+                this.playerContainer.add(this.weaponSpriteLayer);
+            }
+            this.weaponSpriteLayer.setText(eq.weapon.icon).setVisible(true);
+            if (this.weaponGfx) this.weaponGfx.setVisible(false);
+        } else if (this.weaponGfx) {
+            if (this.weaponSpriteLayer) this.weaponSpriteLayer.setVisible(false);
+            this.weaponGfx.setVisible(true);
+        }
     }
 }

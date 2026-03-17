@@ -1,4 +1,5 @@
 import { SaveSystem } from '../utils/SaveSystem.js';
+import { EquipmentManager, RARITIES } from '../utils/EquipmentManager.js';
 
 export default class UIScene extends Phaser.Scene {
     constructor() {
@@ -17,6 +18,8 @@ export default class UIScene extends Phaser.Scene {
         this.skillMaxCooldowns = [5000, 5000, 5000, 5000];
         this.skillBars = [];
         this.skillButtons = [];
+        this.equipment = new EquipmentManager();
+        this.isEquipmentOpen = false;
 
         // Debug text
         this.debugText = this.add.text(w / 2, 85, '', { fontSize: '10px', fill: '#00ff00' }).setOrigin(0.5).setAlpha(0);
@@ -183,11 +186,20 @@ export default class UIScene extends Phaser.Scene {
             const btn = this.add.container(ix, navY);
             
             // Procedural nav bg
-            const nbg = this.add.rectangle(0, 0, 80, 100, 0x1a1a2e, 0.5).setStrokeStyle(1, 0x444466);
+            const nbg = this.add.rectangle(0, 0, 80, 100, 0x1a1a2e, 0.5).setStrokeStyle(1, 0x444466).setInteractive();
             const icon = this.add.text(0, -10, item.icon, { fontSize: '28px' }).setOrigin(0.5);
             const label = this.add.text(0, 25, item.name, { fontSize: '10px', fill: '#ffffff' }).setOrigin(0.5);
             
             btn.add([nbg, icon, label]);
+            
+            nbg.on('pointerdown', () => {
+                if (item.name === 'Equipment') {
+                    this.showEquipmentMenu();
+                } else {
+                    // Other tabs...
+                }
+            });
+
             // Highlight selected (Skill by default maybe)
             if (i === 2) icon.setTint(0xffaa00);
         });
@@ -250,23 +262,12 @@ export default class UIScene extends Phaser.Scene {
 
         if (stats.gold >= cost) {
             stats.gold -= cost;
-            stats[levelKey] = level + 1;
             
-            // Apply stat increase
-            if (id === 'damage') {
-                stats.attack += upg.increment;
-            } else if (id === 'hp') {
-                stats.maxHp += upg.increment;
-                stats.hp += upg.increment;
-            } else {
-                stats[id] = (stats[id] || 0) + upg.increment;
+            const game = this.scene.get('GameScene');
+            if (game && game.buyBaseUpgrade) {
+                game.buyBaseUpgrade(id, upg.increment);
             }
 
-            this.updateStats(stats);
-            
-            // Save on upgrade
-            SaveSystem.save(stats);
-            
             const ui = this.upgradeUI[id];
             this.tweens.add({ targets: ui.buyBtn, scaleX: 1.05, scaleY: 1.05, duration: 80, yoyo: true });
         } else {
@@ -504,6 +505,185 @@ export default class UIScene extends Phaser.Scene {
             }
         } catch (err) {
             console.error('UIScene Update Error:', err);
+        }
+    }
+    showEquipmentMenu() {
+        if (this.isEquipmentOpen) return;
+        this.isEquipmentOpen = true;
+
+        const w = this.scale.width;
+        const h = this.scale.height;
+
+        const overlay = this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.8).setInteractive();
+        const panel = this.add.container(w/2, h/2);
+        
+        const bg = this.add.rectangle(0, 0, 650, 500, 0x1a1a2e).setStrokeStyle(4, 0x444466);
+        const title = this.add.text(0, -220, 'EQUIPMENT', { fontSize: '32px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+        const closeBtn = this.add.text(300, -220, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
+        
+        panel.add([bg, title, closeBtn]);
+
+        closeBtn.on('pointerdown', () => {
+            overlay.destroy();
+            panel.destroy();
+            this.isEquipmentOpen = false;
+        });
+
+        // ── Equipment Slots ──────────────────────────────────────────────────
+        const slots = [
+            { id: 'weapon', label: 'Waffe' },
+            { id: 'helmet', label: 'Hut' },
+            { id: 'armor', label: 'Robe' },
+            { id: 'ring1', label: 'Ring' },
+            { id: 'ring2', label: 'Ring' },
+            { id: 'accessory', label: 'Extra' }
+        ];
+
+        const slotSize = 85;
+        const slotsStartX = -250;
+        const slotsStartY = -120;
+        
+        slots.forEach((slot, i) => {
+            const sx = slotsStartX + (i % 2) * 110;
+            const sy = slotsStartY + Math.floor(i / 2) * 100;
+            const item = this.equipment.equipped[slot.id];
+            
+            const slotBg = this.add.rectangle(sx, sy, slotSize, slotSize, 0x111122).setStrokeStyle(2, 0x444466);
+            const slotLabel = this.add.text(sx, sy + 30, slot.label, { fontSize: '10px', fill: '#666' }).setOrigin(0.5);
+            panel.add([slotBg, slotLabel]);
+
+            if (item) {
+                const itemIcon = this.add.text(sx, sy - 5, item.icon, { fontSize: '32px' }).setOrigin(0.5).setInteractive();
+                const rarityColor = RARITIES[item.rarity].color;
+                slotBg.setStrokeStyle(3, rarityColor);
+                panel.add(itemIcon);
+                
+                itemIcon.on('pointerdown', () => {
+                    this.equipment.unequip(slot.id);
+                    overlay.destroy();
+                    panel.destroy();
+                    this.isEquipmentOpen = false;
+                    this.showEquipmentMenu(); // Refresh
+                    this.syncGameSceneStats();
+                });
+                
+                // Tooltip on Hover
+                itemIcon.on('pointerover', (pointer) => {
+                    this.showItemTooltip(item, pointer);
+                    slotBg.setStrokeStyle(4, 0xffffff);
+                });
+                itemIcon.on('pointerout', () => {
+                    this.hideItemTooltip();
+                    slotBg.setStrokeStyle(3, rarityColor);
+                });
+            }
+        });
+
+        // ── Inventory Grid ───────────────────────────────────────────────────
+        const invStartX = 40;
+        const invStartY = -120;
+        const invSpacing = 95;
+        
+        const invLabel = this.add.text(invStartX, invStartY - 50, 'INVENTAR', { fontSize: '18px', fill: '#ffffff' }).setOrigin(0, 0.5);
+        panel.add(invLabel);
+        
+        this.equipment.inventory.forEach((item, i) => {
+            const ix = invStartX + (i % 3) * invSpacing;
+            const iy = invStartY + Math.floor(i / 3) * invSpacing;
+            
+            const rarityInfo = RARITIES[item.rarity];
+            const itemBg = this.add.rectangle(ix + 40, iy, 85, 85, 0x222233).setStrokeStyle(2, rarityInfo.color).setInteractive();
+            const itemIcon = this.add.text(ix + 40, iy - 5, item.icon, { fontSize: '34px' }).setOrigin(0.5);
+            
+            panel.add([itemBg, itemIcon]);
+            
+            itemBg.on('pointerdown', () => {
+                let targetSlot = item.type;
+                if (item.type === 'ring') targetSlot = this.equipment.equipped.ring1 ? 'ring2' : 'ring1';
+                
+                if (this.equipment.equip(i, targetSlot)) {
+                    overlay.destroy();
+                    panel.destroy();
+                    this.isEquipmentOpen = false;
+                    this.showEquipmentMenu(); // Refresh
+                    this.syncGameSceneStats();
+                }
+            });
+
+            itemBg.on('pointerover', (pointer) => {
+                this.showItemTooltip(item, pointer);
+                itemBg.setStrokeStyle(4, 0xffffff);
+            });
+            itemBg.on('pointerout', () => {
+                this.hideItemTooltip();
+                itemBg.setStrokeStyle(2, rarityInfo.color);
+            });
+        });
+
+        // ── Loot Button (For Testing/Demo) ──────────────────────────────────
+        const lootBtnX = -250;
+        const lootBtnY = 180;
+        const lootBtn = this.add.rectangle(lootBtnX, lootBtnY, 120, 50, 0x442266).setStrokeStyle(2, 0xaa44ff).setInteractive();
+        const lootText = this.add.text(lootBtnX, lootBtnY, 'LOOT!', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        panel.add([lootBtn, lootText]);
+
+        lootBtn.on('pointerdown', () => {
+            const newItem = this.equipment.generateRandomItem();
+            if (newItem) {
+                this.equipment.inventory.push(newItem);
+                this.equipment.save();
+                overlay.destroy();
+                panel.destroy();
+                this.isEquipmentOpen = false;
+                this.showEquipmentMenu();
+            }
+        });
+    }
+
+    showItemTooltip(item, pointer) {
+        if (this.tooltip) this.tooltip.destroy();
+        
+        const rarityInfo = RARITIES[item.rarity];
+        const w = 240;
+        const h = 200;
+        
+        // Offset tooltip to not be under finger/mouse
+        const tx = Math.min(pointer.x + 20, this.scale.width - w - 20);
+        const ty = Math.min(pointer.y + 20, this.scale.height - h - 20);
+        
+        const container = this.add.container(tx, ty);
+        
+        const bg = this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.95).setStrokeStyle(2, rarityInfo.color);
+        const name = this.add.text(10, 10, item.name, { fontSize: '18px', fill: rarityInfo.colorStr, fontStyle: 'bold' });
+        const rarityText = this.add.text(10, 35, rarityInfo.name, { fontSize: '12px', fill: rarityInfo.colorStr });
+        const line = this.add.rectangle(w/2, 55, w - 20, 1, 0x444444);
+        
+        let statsStr = '';
+        Object.keys(item.stats).forEach(k => {
+            let val = item.stats[k];
+            let sign = val > 0 ? '+' : '';
+            statsStr += `${k.toUpperCase()}: ${sign}${val}\n`;
+        });
+        const stats = this.add.text(10, 65, statsStr, { fontSize: '14px', fill: '#ffffff', lineSpacing: 5 });
+        
+        const flavor = this.add.text(10, h - 45, item.flavor, { fontSize: '11px', fill: '#aaa', fontStyle: 'italic', wordWrap: { width: w - 20 } });
+        
+        container.add([bg, name, rarityText, line, stats, flavor]);
+        container.setDepth(2000);
+        this.tooltip = container;
+    }
+
+    hideItemTooltip() {
+        if (this.tooltip) {
+            this.tooltip.destroy();
+            this.tooltip = null;
+        }
+    }
+
+    syncGameSceneStats() {
+        const game = this.scene.get('GameScene');
+        if (game && game.applyEquipmentStats) {
+            game.applyEquipmentStats();
         }
     }
 }
