@@ -8,7 +8,7 @@ const config = {
   type: Phaser.AUTO,
   width: 720,
   height: 1280,
-  parent: 'game-container',
+  parent: 'game',
   backgroundColor: '#000000',
   physics: {
     default: 'arcade',
@@ -17,4 +17,9 @@ const config = {
   scene: [BootScene, MenuScene, GameScene, UIScene]
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+window.onerror = function(msg, url, line, col, error) {
+  console.error('Global Error:', msg, 'at', url, ':', line, ':', col, error);
+  return false;
+};

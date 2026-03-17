@@ -260,7 +260,8 @@ export default class MenuScene extends Phaser.Scene {
             gems: 0,
             emeralds: 0,
             autoSkills: false,
-            stage: 1
+            stage: 1,
+            maxStage: 1
         };
 
         // If class matches saved class, use saved stats entirely

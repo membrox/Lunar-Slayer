@@ -67,12 +67,16 @@ export default class UIScene extends Phaser.Scene {
         headerGfx.strokeRoundedRect(w / 2 - 150, headerY - 30, 300, 80, 10);
         
         // Stage Arrows
-        this.add.text(w / 2 - 130, headerY, '◀', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
-        this.add.text(w / 2 + 130, headerY, '▶', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+        const leftArrow = this.add.text(w / 2 - 130, headerY, '◀', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+        const rightArrow = this.add.text(w / 2 + 130, headerY, '▶', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
 
         this.stageText = this.add.text(w / 2, headerY - 5, `STAGE ${data.stage || 1}`, {
             fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setInteractive();
+
+        this.stageText.on('pointerdown', () => this.showStageSelector());
+        leftArrow.on('pointerdown', () => this.showStageSelector());
+        rightArrow.on('pointerdown', () => this.showStageSelector());
 
         // Boss Progress Bar
         this.add.rectangle(w / 2, headerY + 30, 300, 10, 0x330000).setOrigin(0.5);
@@ -309,99 +313,197 @@ export default class UIScene extends Phaser.Scene {
         }
     }
 
+    showStageSelector() {
+        if (this.isModalOpen) return;
+        this.isModalOpen = true;
+
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const maxStage = this.stats.maxStage || 1;
+        let selectedStage = this.stats.stage || 1;
+
+        // Overlay
+        const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.75).setInteractive();
+        
+        // Panel
+        const panelW = 600;
+        const panelH = 400;
+        const panel = this.add.container(w / 2, h / 2);
+        
+        const bg = this.add.rectangle(0, 0, panelW, panelH, 0x1a1a2e).setStrokeStyle(4, 0x444466);
+        const title = this.add.text(0, -150, 'Wähle eine Stage', {
+            fontSize: '32px', fill: '#FFD700', fontStyle: 'bold', stroke: '#000', strokeThickness: 4
+        }).setOrigin(0.5);
+
+        const currentStageText = this.add.text(0, -60, `Stage ${selectedStage}`, {
+            fontSize: '48px', fill: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Slider
+        const sliderW = 450;
+        const sliderY = 40;
+        const sliderTrack = this.add.rectangle(0, sliderY, sliderW, 10, 0x333344).setOrigin(0.5);
+        const sliderThumb = this.add.circle(0, sliderY, 20, 0xcc8800).setStrokeStyle(3, 0xffffff).setInteractive({ draggable: true });
+
+        // Update thumb position based on selected stage
+        const updateThumb = (s) => {
+            const pct = maxStage > 1 ? (s - 1) / (maxStage - 1) : 0.5;
+            sliderThumb.x = (pct - 0.5) * sliderW;
+            currentStageText.setText(`Stage ${s}`);
+        };
+        updateThumb(selectedStage);
+
+        sliderThumb.on('drag', (pointer, dragX) => {
+            dragX = Phaser.Math.Clamp(dragX, -sliderW / 2, sliderW / 2);
+            sliderThumb.x = dragX;
+            
+            const pct = (dragX + sliderW / 2) / sliderW;
+            const s = Math.round(pct * (maxStage - 1)) + 1;
+            if (s !== selectedStage) {
+                selectedStage = s;
+                currentStageText.setText(`Stage ${s}`);
+            }
+        });
+
+        // OK Button
+        const okBtn = this.add.rectangle(-100, 140, 160, 60, 0x228833).setInteractive().setOrigin(0.5);
+        const okText = this.add.text(-100, 140, 'OK', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        
+        // Close Button (Cancel)
+        const cancelBtn = this.add.rectangle(100, 140, 160, 60, 0xcc3333).setInteractive().setOrigin(0.5);
+        const cancelText = this.add.text(100, 140, 'X', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+
+        panel.add([bg, title, currentStageText, sliderTrack, sliderThumb, okBtn, okText, cancelBtn, cancelText]);
+
+        const closeModal = () => {
+            overlay.destroy();
+            panel.destroy();
+            this.isModalOpen = false;
+        };
+
+        okBtn.on('pointerdown', () => {
+            const game = this.scene.get('GameScene');
+            if (game && game.jumpToStage) {
+                game.jumpToStage(selectedStage);
+            }
+            closeModal();
+        });
+
+        cancelBtn.on('pointerdown', closeModal);
+        overlay.on('pointerdown', closeModal);
+    }
+
     updateStats(stats, stage, killed, total) {
         if (!stats) return;
         this.stats = stats;
         
-        this.goldText.setText(`💰 ${Math.floor(stats.gold)}`);
-        this.gemsText.setText(`💎 ${stats.gems || 0}`);
-        this.emeraldsText.setText(`🟢 ${stats.emeralds || 0}`);
+        if (this.goldText && this.goldText.active) this.goldText.setText(`💰 ${Math.floor(Number(stats.gold) || 0)}`);
+        if (this.gemsText && this.gemsText.active) this.gemsText.setText(`💎 ${Number(stats.gems) || 0}`);
+        if (this.emeraldsText && this.emeraldsText.active) this.emeraldsText.setText(`🟢 ${Number(stats.emeralds) || 0}`);
 
-        const hpPct = Math.max(0, stats.hp / stats.maxHp);
-        this.hpBarFill.width = 160 * hpPct;
-        this.hpText.setText(`HP: ${Math.floor(stats.hp)}/${Math.floor(stats.maxHp)}`);
+        const hp = Number(stats.hp) || 0;
+        const maxHp = Number(stats.maxHp) || 100;
+        const hpPct = Math.max(0, Math.min(1, hp / maxHp));
+        if (this.hpBarFill && this.hpBarFill.active) this.hpBarFill.width = 160 * hpPct;
+        if (this.hpText && this.hpText.active) this.hpText.setText(`HP: ${Math.floor(hp)}/${Math.floor(maxHp)}`);
 
-        if (stage !== undefined) this.stageText.setText(`STAGE ${stage}`);
+        if (stage !== undefined && this.stageText && this.stageText.active) {
+            this.stageText.setText(`STAGE ${stage}`);
+        }
         
-        if (killed !== undefined && total !== undefined) {
-            const pct = Math.max(0, killed / total);
+        if (killed !== undefined && total !== undefined && this.bossProgressBar && this.bossProgressBar.active) {
+            const pct = Math.max(0, Math.min(1, killed / total));
             this.bossProgressBar.width = 300 * pct;
         }
 
-        const xpNeeded = stats.level * 100;
-        this.xpBar.width = (this.scale.width - 40) * (stats.xp / xpNeeded);
-        this.xpText.setText(`${stats.xp} / ${xpNeeded} XP`);
+        const level = Number(stats.level) || 1;
+        const xp = Number(stats.xp) || 0;
+        const xpNeeded = level * 100;
+        const xpPct = Math.max(0, Math.min(1, xp / xpNeeded));
+        if (this.xpBar && this.xpBar.active) this.xpBar.width = (this.scale.width - 40) * xpPct;
+        if (this.xpText && this.xpText.active) this.xpText.setText(`${xp} / ${xpNeeded} XP`);
 
         // Upgrades
         if (this.upgrades && this.upgradeUI) {
             this.upgrades.forEach(upg => {
                 const ui = this.upgradeUI[upg.id];
-                if (!ui) return;
-                const level = stats[upg.id + 'Level'] || 1;
-                const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, level - 1));
+                if (!ui || !ui.title || !ui.title.active) return;
+                const upgLevel = Number(stats[upg.id + 'Level']) || 1;
+                const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, upgLevel - 1));
                 const suffix = upg.suffix || '';
                 
-                ui.title.setText(`${upg.name} Lv.${level}`);
+                ui.title.setText(`${upg.name} Lv.${upgLevel}`);
                 
-                let currentVal = upg.id === 'damage' ? stats.attack : (upg.id === 'hp' ? stats.maxHp : (stats[upg.id] || 0));
+                let currentVal = upg.id === 'damage' ? Number(stats.attack) : (upg.id === 'hp' ? Number(stats.maxHp) : (Number(stats[upg.id]) || 0));
                 let nextVal = currentVal + upg.increment;
-                ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
-                ui.costText.setText(`💰 ${cost}`);
+                if (ui.valText && ui.valText.active) ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
+                if (ui.costText && ui.costText.active) ui.costText.setText(`💰 ${cost}`);
                 
-                if (stats.gold < cost) {
-                    ui.buyBtn.setAlpha(0.5);
-                    ui.costText.setFill('#ff0000');
-                } else {
-                    ui.buyBtn.setAlpha(1);
-                    ui.costText.setFill('#000');
+                if (ui.buyBtn && ui.buyBtn.active) {
+                    if (Number(stats.gold) < cost) {
+                        ui.buyBtn.setAlpha(0.5);
+                        ui.costText.setFill('#ff0000');
+                    } else {
+                        ui.buyBtn.setAlpha(1);
+                        ui.costText.setFill('#000');
+                    }
                 }
             });
         }
     }
 
     update(time, delta) {
-        if (this.globalCooldown > 0) {
-            this.globalCooldown = Math.max(0, this.globalCooldown - delta);
-        }
-
-        const game = this.scene.get('GameScene');
-        if (!game) return;
-
-        // Auto Skill Trigger Logic
-        let hasEnemy = false;
-        const px = game.playerPhysics.x;
-        // Only target enemies in front of the player and within a tighter 550px range
-        const bossAlive = game.boss && game.boss.active && game.boss.getData && game.boss.getData('alive') && (game.boss.x - px) > -50 && (game.boss.x - px) < 550;
-        const listAlive = game.enemyList && game.enemyList.some(e => e && e.active && e.getData && e.getData('alive') && (e.x - px) > -50 && (e.x - px) < 550);
-        hasEnemy = !!(bossAlive || listAlive);
-        // this.debugText.setText(`DET: B:${bossAlive ? 'Y' : 'N'} L:${listAlive ? 'Y' : 'N'} H:${hasEnemy ? 'Y' : 'N'}`).setAlpha(1);
-
-        for (let i = 0; i < 4; i++) {
-            // Update Cooldown Timers
-            if (this.skillCooldowns[i] > 0) {
-                this.skillCooldowns[i] = Math.max(0, this.skillCooldowns[i] - delta);
+        try {
+            if (this.globalCooldown > 0) {
+                this.globalCooldown = Math.max(0, this.globalCooldown - delta);
             }
 
-            const bar = this.skillBars[i];
-            if (!bar) continue;
+            const game = this.scene.get('GameScene');
+            if (!game || !game.scene.isActive()) return;
 
-            const cd = this.skillCooldowns[i];
-            if (cd > 0) {
-                bar.overlay.height = 76 * (cd / this.skillMaxCooldowns[i]);
-                bar.text.setText((cd / 1000).toFixed(1)).setAlpha(1);
-            } else {
-                bar.overlay.height = 0;
-                bar.text.setAlpha(0);
-                
-                // Trigger AUTO if possible - Enforce GCD check INSIDE the loop
-                if (this.isAutoSkills && hasEnemy && this.globalCooldown <= 0) {
-                    if (i < 3) {
-                        this.triggerSkill(i);
-                    } else if (i === 3 && this.stats.hp < this.stats.maxHp * 0.5) {
-                        this.triggerSkill(i);
+            const w = this.scale.width;
+
+            // Auto Skill Trigger Logic
+            let hasEnemy = false;
+            const px = (game.playerPhysics && game.playerPhysics.active) ? game.playerPhysics.x : w / 2;
+            
+            // Safety check for game state objects
+            const boss = game.boss;
+            const enemyList = game.enemyList || [];
+
+            const bossAlive = boss && boss.active && boss.getData && boss.getData('alive') && (boss.x - px) > -50 && (boss.x - px) < 550;
+            const listAlive = enemyList.some(e => e && e.active && e.getData && e.getData('alive') && (e.x - px) > -50 && (e.x - px) < 550);
+            hasEnemy = !!(bossAlive || listAlive);
+
+            for (let i = 0; i < 4; i++) {
+                // Update Cooldown Timers
+                if (this.skillCooldowns[i] > 0) {
+                    this.skillCooldowns[i] = Math.max(0, this.skillCooldowns[i] - delta);
+                }
+
+                const bar = this.skillBars[i];
+                if (!bar) continue;
+
+                const cd = this.skillCooldowns[i];
+                if (cd > 0) {
+                    if (bar.overlay && bar.overlay.active) bar.overlay.height = 76 * (cd / (this.skillMaxCooldowns[i] || 5000));
+                    if (bar.text && bar.text.active) bar.text.setText((cd / 1000).toFixed(1)).setAlpha(1);
+                } else {
+                    if (bar.overlay && bar.overlay.active) bar.overlay.height = 0;
+                    if (bar.text && bar.text.active) bar.text.setAlpha(0);
+                    
+                    // Trigger AUTO
+                    if (this.isAutoSkills && hasEnemy && this.globalCooldown <= 0) {
+                        if (i < 3) {
+                            this.triggerSkill(i);
+                        } else if (i === 3 && this.stats && this.stats.hp < (this.stats.maxHp || 100) * 0.5) {
+                            this.triggerSkill(i);
+                        }
                     }
                 }
             }
+        } catch (err) {
+            console.error('UIScene Update Error:', err);
         }
     }
 }

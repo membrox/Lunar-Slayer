@@ -16,25 +16,44 @@ export default class GameScene extends Phaser.Scene {
     }
 
     init(data) {
-        this.currentStage = data.stage || 1;
-        this.playerStats = data.playerStats || {
-            hp: 100, maxHp: 100,
-            mana: 100, maxMana: 100,
-            xp: 0, level: 1,
-            attack: 15, defense: 3,
-            speed: 200, gold: 0,
-            autoAttackSpeed: 800,
-            className: 'Krieger',
-            classIndex: 0,
-            damageLevel: 1,
-            hpLevel: 1,
-            hpRegenLevel: 1,
-            critLevel: 1,
-            gems: 0,
-            emeralds: 0
+        if (!data) data = {};
+        this.currentStage = Number(data.stage) || 1;
+        const s = data.playerStats || {};
+        
+        this.playerStats = {
+            hp: Number(s.hp) || 100,
+            maxHp: Number(s.maxHp) || 100,
+            mana: Number(s.mana) || 100,
+            maxMana: Number(s.maxMana) || 100,
+            xp: Number(s.xp) || 0,
+            level: Number(s.level) || 1,
+            attack: Number(s.attack) || 15,
+            defense: Number(s.defense) || 3,
+            speed: Number(s.speed) || 200,
+            gold: Number(s.gold) || 0,
+            autoAttackSpeed: Number(s.autoAttackSpeed) || 800,
+            className: s.className || 'Krieger',
+            classIndex: Number(s.classIndex) ?? 0,
+            damageLevel: Number(s.damageLevel) || 1,
+            hpLevel: Number(s.hpLevel) || 1,
+            hpRegenLevel: Number(s.hpRegenLevel) || 1,
+            critLevel: Number(s.critLevel) || 1,
+            gems: Number(s.gems) || 0,
+            emeralds: Number(s.emeralds) || 0,
+            autoSkills: !!s.autoSkills,
+            stage: Number(s.stage) || this.currentStage,
+            maxStage: Number(s.maxStage) || Math.max(Number(s.stage) || 1, this.currentStage)
         };
-        this.playerStats.hp = this.playerStats.maxHp;
-        this.playerStats.mana = this.playerStats.maxMana;
+
+        // Final sanity check for finite numbers
+        Object.keys(this.playerStats).forEach(k => {
+            if (typeof this.playerStats[k] === 'number' && !isFinite(this.playerStats[k])) {
+                this.playerStats[k] = 0;
+            }
+        });
+
+        this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
+        this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
     }
 
     create() {
@@ -80,7 +99,6 @@ export default class GameScene extends Phaser.Scene {
         }
 
         this.buildWorld();
-        this.spawnEnemiesIfNeeded();
 
         // Camera - Action area focus (Screen Y = World Y)
         this.cameras.main.setBounds(0, 0, w * 10, h);
@@ -131,15 +149,17 @@ export default class GameScene extends Phaser.Scene {
         const w = this.scale.width;
         const h = this.scale.height;
         const classIndex = this.playerStats.classIndex ?? 0;
-        const bgAsset = this.textures.get('game_bg').getSourceImage();
+        const bgAsset = this.textures.get('game_bg') ? this.textures.get('game_bg').getSourceImage() : null;
 
         // ── New Visual Background (TileSprite for scrolling) ──────────────────
-        // Scaling to fit the battle window height (approx 580px)
         const battleH = 580;
-        const visualScale = battleH / bgAsset.height;
-        
-        // Position at 290 (center of 580)
-        this.bg = this.add.tileSprite(w / 2, 290, w / visualScale, bgAsset.height, 'game_bg').setScrollFactor(0);
+        let visualScale = 1;
+        if (bgAsset && bgAsset.height) {
+            visualScale = battleH / bgAsset.height;
+            this.bg = this.add.tileSprite(w / 2, 290, w / visualScale, bgAsset.height, 'game_bg').setScrollFactor(0);
+        } else {
+            this.bg = this.add.tileSprite(w / 2, 290, w, battleH, 'game_bg').setScrollFactor(0);
+        }
         this.bg.setScale(visualScale).setAlpha(1);
 
         // ── Physics ground ────────────────────────────────────────────────────
@@ -670,7 +690,8 @@ export default class GameScene extends Phaser.Scene {
         
         // Stage Reward: 1000 Gems
         this.playerStats.gems += 1000;
-        this.playerStats.stage = this.currentStage + 1; // Prepare next stage for save
+        this.playerStats.stage = this.currentStage + 1;
+        this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, this.playerStats.stage);
         SaveSystem.save(this.playerStats);
 
         this.time.delayedCall(300, () => {
@@ -686,6 +707,22 @@ export default class GameScene extends Phaser.Scene {
                     stage: this.playerStats.stage, 
                     playerStats: this.playerStats 
                 });
+            });
+        });
+    }
+
+    jumpToStage(s) {
+        if (this.stageComplete) return;
+        this.playerStats.stage = s;
+        this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, s);
+        SaveSystem.save(this.playerStats);
+
+        this.scene.stop('UIScene');
+        this.cameras.main.fadeOut(400, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.scene.start('GameScene', { 
+                stage: s, 
+                playerStats: this.playerStats 
             });
         });
     }
@@ -706,134 +743,142 @@ export default class GameScene extends Phaser.Scene {
     // ─── Update Loop ──────────────────────────────────────────────────────────
 
     update(time, delta) {
-        if (this.gameOver || this.stageComplete) return;
+        try {
+            if (this.gameOver || this.stageComplete) return;
 
-        // Update scrolling background
-        if (this.bg && this.isWalking) {
-            // Increased speed factor for better "running" feel
-            this.bg.tilePositionX += (this.playerStats.speed * delta / 1000) * 0.8;
-        }
-
-        // Ensure enemies continue to spawn
-        this.spawnEnemiesIfNeeded();
-
-        const px = this.playerPhysics.x;
-        const py = this.playerPhysics.y;
-
-        // Sync player container position with physics rect
-        this.playerContainer.setPosition(px, py);
-
-        // Find nearest alive enemy using physics positions
-        let nearest = null;
-        let nearestDist = 99999;
-        this.enemyList.forEach(e => {
-            if (!e.getData('alive') || !e.active) return;
-            const pr = e.getData('physRect');
-            if (pr && pr.active) {
-                const d = Math.abs(px - pr.x);
-                if (d < nearestDist) {
-                    nearestDist = d;
-                    nearest = e;
-                }
-            }
-        });
-
-        // Engagement distance - increased to prevent visual overlap
-        const playerReach = (nearest && nearest.getData('isBoss')) ? 265 : 235;
-        const enemyReach = (nearest && nearest.getData('isBoss')) ? 215 : 190;
-
-        if (nearest && nearestDist < playerReach) {
-            if (this.isWalking) {
-                // Just entered range - guarantee first strike
-                this.autoAttackTimer = 0;
-            }
-            this.isWalking = false;
-            this.playerPhysics.body.setVelocityX(0);
-
-            // Player Auto attack
-            this.autoAttackTimer -= delta;
-            if (this.autoAttackTimer <= 0) {
-                const baseDmg = this.playerStats.attack + Phaser.Math.Between(-2, 5);
-                this.dealDamage(nearest, baseDmg);
-                this.autoAttackTimer = this.playerStats.autoAttackSpeed;
-
-                // Weapon swing animation
-                this.tweens.add({
-                    targets: this.weaponGfx,
-                    angle: { from: -30, to: 30 },
-                    duration: 120, yoyo: true, ease: 'Sine.InOut'
-                });
+            // Update scrolling background
+            if (this.bg && this.isWalking) {
+                this.bg.tilePositionX += (this.playerStats.speed * delta / 1000) * 0.8;
             }
 
-            // Enemy attacks ONLY IF close enough
-            if (nearest.getData('alive') && nearestDist < enemyReach) {
-                let timer = nearest.getData('attackTimer') || 0;
-                timer -= delta;
-                if (timer <= 0) {
-                    const dmg = Math.floor(nearest.getData('attack') || 1);
-                    this.playerStats.hp = Math.floor(Math.max(0, this.playerStats.hp - dmg));
-                    
-                    if (isNaN(this.playerStats.hp)) this.playerStats.hp = 1;
-                    
-                    // Enemy lunge animation
-                    this.tweens.add({
-                        targets: nearest,
-                        x: nearest.x - 30,
-                        duration: 100,
-                        yoyo: true,
-                        ease: 'Back.Out'
-                    });
+            // Ensure enemies continue to spawn
+            this.spawnEnemiesIfNeeded();
 
-                    this.cameras.main.shake(100, 0.004);
-                    this.showDamageNumber(px, py - 40, `-${Math.floor(dmg)}`, '#ff3333', 20);
+            const px = this.playerPhysics ? this.playerPhysics.x : this.scale.width / 2;
+            const py = this.playerPhysics ? this.playerPhysics.y : this.groundY - 34;
 
-                    timer = nearest.getData('attackSpeed') || 1200;
+            // Sync player container position with physics rect
+            if (this.playerContainer && this.playerPhysics) {
+                this.playerContainer.setPosition(px, py);
+            }
 
-                    if (this.playerStats.hp <= 0) {
-                        this.triggerStageReset();
+            // Find nearest alive enemy using physics positions
+            let nearest = null;
+            let nearestDist = 99999;
+            this.enemyList.forEach(e => {
+                if (!e || !e.getData || !e.getData('alive') || !e.active) return;
+                const pr = e.getData('physRect');
+                if (pr && pr.active) {
+                    const d = Math.abs(px - pr.x);
+                    if (d < nearestDist) {
+                        nearestDist = d;
+                        nearest = e;
                     }
                 }
-                nearest.setData('attackTimer', timer);
+            });
+
+            // Engagement distance
+            const playerReach = (nearest && nearest.getData('isBoss')) ? 265 : 235;
+            const enemyReach = (nearest && nearest.getData('isBoss')) ? 215 : 190;
+
+            if (nearest && nearestDist < playerReach) {
+                if (this.isWalking) {
+                    this.autoAttackTimer = 0;
+                }
+                this.isWalking = false;
+                if (this.playerPhysics && this.playerPhysics.body) {
+                    this.playerPhysics.body.setVelocityX(0);
+                }
+
+                // Player Auto attack
+                this.autoAttackTimer -= delta;
+                if (this.autoAttackTimer <= 0) {
+                    const baseDmg = this.playerStats.attack + Phaser.Math.Between(-2, 5);
+                    this.dealDamage(nearest, baseDmg);
+                    this.autoAttackTimer = this.playerStats.autoAttackSpeed;
+
+                    // Weapon swing animation
+                    if (this.weaponGfx && this.weaponGfx.active) {
+                        this.tweens.add({
+                            targets: this.weaponGfx,
+                            angle: { from: -30, to: 30 },
+                            duration: 120, yoyo: true, ease: 'Sine.InOut'
+                        });
+                    }
+                }
+
+                // Enemy attacks
+                if (nearest.getData('alive') && nearestDist < enemyReach) {
+                    let timer = nearest.getData('attackTimer') || 0;
+                    timer -= delta;
+                    if (timer <= 0) {
+                        const dmg = Math.floor(nearest.getData('attack') || 1);
+                        this.playerStats.hp = Math.floor(Math.max(0, this.playerStats.hp - dmg));
+                        
+                        if (isNaN(this.playerStats.hp)) this.playerStats.hp = 1;
+                        
+                        // Enemy lunge animation
+                        this.tweens.add({
+                            targets: nearest,
+                            x: nearest.x - 30,
+                            duration: 100,
+                            yoyo: true,
+                            ease: 'Back.Out'
+                        });
+
+                        this.cameras.main.shake(100, 0.004);
+                        this.showDamageNumber(px, py - 40, `-${Math.floor(dmg)}`, '#ff3333', 20);
+
+                        timer = nearest.getData('attackSpeed') || 1200;
+
+                        if (this.playerStats.hp <= 0) {
+                            this.triggerStageReset();
+                        }
+                    }
+                    nearest.setData('attackTimer', timer);
+                }
+            } else {
+                this.isWalking = true;
             }
-        } else {
-            this.isWalking = true;
-        }
 
-        // Apply scrolling logic via velocities
-        this.enemyList.forEach(e => {
-            const pr = e.getData('physRect');
-            if (pr && pr.active && e.getData('alive')) {
-                const baseSpeed = e.getData('baseSpeed') || 75;
-                const isBoss = e.getData('isBoss');
-                const reach = isBoss ? 215 : 190;
-                const dist = Math.abs(px - pr.x);
+            // Apply scrolling logic via velocities
+            this.enemyList.forEach(e => {
+                if (!e || !e.getData) return;
+                const pr = e.getData('physRect');
+                if (pr && pr.active && e.getData('alive')) {
+                    const baseSpeed = e.getData('baseSpeed') || 75;
+                    const isBoss = e.getData('isBoss');
+                    const reach = isBoss ? 215 : 190;
+                    const dist = Math.abs(px - pr.x);
 
-                // Stop enemy's own movement if in range, but still move with world if player is walking
-                const enemySelfSpeed = (dist > reach) ? baseSpeed : 0;
-                const targetVx = this.isWalking ? -(enemySelfSpeed + this.playerStats.speed) : -enemySelfSpeed;
-                pr.body.setVelocityX(targetVx);
+                    const enemySelfSpeed = (dist > reach) ? baseSpeed : 0;
+                    const targetVx = this.isWalking ? -(enemySelfSpeed + (this.playerStats.speed || 0)) : -enemySelfSpeed;
+                    if (pr.body) pr.body.setVelocityX(targetVx);
+                }
+            });
+
+            if (this.isWalking) {
+                const scrollSpeed = (this.playerStats.speed || 0) * (delta / 1000);
+                this.worldScroll += scrollSpeed;
+                this.updateParallax(scrollSpeed);
             }
-        });
 
-        if (this.isWalking) {
-            const scrollSpeed = this.playerStats.speed * (delta / 1000);
-            this.worldScroll += scrollSpeed;
-            this.updateParallax(scrollSpeed);
-        }
+            // Sync enemy containers to their physRect
+            this.enemyList.forEach(e => {
+                if (!e || !e.getData || !e.getData('alive') || !e.active) return;
+                const pr = e.getData('physRect');
+                if (pr && pr.active) {
+                    e.setPosition(pr.x, pr.y);
+                }
+            });
 
-        // Sync enemy containers to their physRect
-        this.enemyList.forEach(e => {
-            if (!e.getData('alive') || !e.active) return;
-            const pr = e.getData('physRect');
-            if (pr && pr.active) {
-                e.setPosition(pr.x, pr.y);
+            // Update UI
+            const uiScene = this.scene.get('UIScene');
+            if (uiScene && uiScene.scene.isActive() && uiScene.updateStats) {
+                uiScene.updateStats(this.playerStats, this.currentStage, this.enemiesKilled, this.totalEnemies);
             }
-        });
-
-        // Update UI
-        const uiScene = this.scene.get('UIScene');
-        if (uiScene && uiScene.updateStats) {
-            uiScene.updateStats(this.playerStats, this.currentStage, this.enemiesKilled, this.totalEnemies);
+        } catch (err) {
+            console.error('GameScene Update Error:', err);
         }
     }
 
