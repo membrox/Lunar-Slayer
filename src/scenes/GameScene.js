@@ -692,6 +692,10 @@ export default class GameScene extends Phaser.Scene {
         this.playerStats.gems += 1000;
         this.playerStats.stage = this.currentStage + 1;
         this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, this.playerStats.stage);
+        
+        // Full Heal for starting the next stage
+        this.playerStats.hp = this.playerStats.maxHp;
+        
         SaveSystem.save(this.playerStats);
 
         this.time.delayedCall(300, () => {
@@ -715,6 +719,10 @@ export default class GameScene extends Phaser.Scene {
         if (this.stageComplete) return;
         this.playerStats.stage = s;
         this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, s);
+        
+        // Full Heal for starting the jumped stage
+        this.playerStats.hp = this.playerStats.maxHp;
+        
         SaveSystem.save(this.playerStats);
 
         this.scene.stop('UIScene');
