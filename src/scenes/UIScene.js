@@ -1,3 +1,5 @@
+import { SaveSystem } from '../utils/SaveSystem.js';
+
 export default class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene' });
@@ -98,11 +100,11 @@ export default class UIScene extends Phaser.Scene {
             const bx = startSX + i * (sW + 10);
             const bg = this.add.rectangle(bx, skillY, sW, sW, 0x111122).setOrigin(0.5).setStrokeStyle(2, 0x444466).setInteractive();
             this.add.rectangle(bx, skillY, sW - 8, sW - 8, sk.color).setOrigin(0.5).setAlpha(0.6);
-            this.add.text(bx, skillY, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
+            this.add.text(bx, skillY - 5, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
             
             // CD Overlay
             const cdOverlay = this.add.rectangle(bx, skillY + sW / 2, sW - 4, 0, 0x000000, 0.8).setOrigin(0.5, 1);
-            const cdText = this.add.text(bx, skillY, '', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0);
+            const cdText = this.add.text(bx, skillY + 10, '', { fontSize: '22px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setAlpha(0);
             
             this.skillBars.push({ overlay: cdOverlay, text: cdText });
             this.skillButtons.push(bg);
@@ -111,7 +113,7 @@ export default class UIScene extends Phaser.Scene {
 
         // ── Auto Button ───────────────────────────────────────────────────────
         const autoY = panelTop + 50; 
-        const autoBg = this.add.circle(80, autoY, 35, 0x442200).setStrokeStyle(3, 0xcc8800).setInteractive();
+        this.autoToggleBtn = this.add.circle(80, autoY, 35, 0x442200).setStrokeStyle(3, 0xcc8800).setInteractive();
         
         // Procedural Auto Icon (Circular Arrow)
         const autoIconGfx = this.add.graphics();
@@ -125,20 +127,22 @@ export default class UIScene extends Phaser.Scene {
 
         // Apply initial visual state if AUTO is active
         if (this.isAutoSkills) {
-            autoBg.setStrokeStyle(5, 0x00ffff);
-            autoBg.setFillStyle(0x004444);
+            this.autoToggleBtn.setStrokeStyle(5, 0x00ffff);
+            this.autoToggleBtn.setFillStyle(0x004444);
         }
 
-        autoBg.on('pointerdown', () => {
+        this.autoToggleBtn.on('pointerdown', () => {
             this.isAutoSkills = !this.isAutoSkills;
-            this.stats.autoSkills = this.isAutoSkills; // Persist in stats object
-            
-            if (this.isAutoSkills) {
-                autoBg.setStrokeStyle(5, 0x00ffff);
-                autoBg.setFillStyle(0x004444);
-            } else {
-                autoBg.setStrokeStyle(3, 0xcc8800);
-                autoBg.setFillStyle(0x442200);
+            this.stats.autoSkills = this.isAutoSkills;
+            this.updateAutoButton();
+        });
+
+        // Periodic Auto-Save
+        this.time.addEvent({
+            delay: 10000, // Every 10 seconds
+            loop: true,
+            callback: () => {
+                if (this.stats) SaveSystem.save(this.stats);
             }
         });
 
@@ -256,6 +260,9 @@ export default class UIScene extends Phaser.Scene {
 
             this.updateStats(stats);
             
+            // Save on upgrade
+            SaveSystem.save(stats);
+            
             const ui = this.upgradeUI[id];
             this.tweens.add({ targets: ui.buyBtn, scaleX: 1.05, scaleY: 1.05, duration: 80, yoyo: true });
         } else {
@@ -286,8 +293,20 @@ export default class UIScene extends Phaser.Scene {
     }
 
     updateBossStatus(hp, maxHp) {
+        if (!this.bossProgressBar) return;
         const pct = Math.max(0, hp / maxHp);
         this.bossProgressBar.width = 300 * pct;
+    }
+
+    updateAutoButton() {
+        if (!this.autoToggleBtn) return;
+        if (this.isAutoSkills) {
+            this.autoToggleBtn.setStrokeStyle(5, 0x00ffff);
+            this.autoToggleBtn.setFillStyle(0x004444);
+        } else {
+            this.autoToggleBtn.setStrokeStyle(3, 0xcc8800);
+            this.autoToggleBtn.setFillStyle(0x442200);
+        }
     }
 
     updateStats(stats, stage, killed, total) {
@@ -314,27 +333,30 @@ export default class UIScene extends Phaser.Scene {
         this.xpText.setText(`${stats.xp} / ${xpNeeded} XP`);
 
         // Upgrades
-        this.upgrades.forEach(upg => {
-            const ui = this.upgradeUI[upg.id];
-            const level = stats[upg.id + 'Level'] || 1;
-            const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, level - 1));
-            const suffix = upg.suffix || '';
-            
-            ui.title.setText(`${upg.name} Lv.${level}`);
-            
-            let currentVal = upg.id === 'damage' ? stats.attack : (upg.id === 'hp' ? stats.maxHp : (stats[upg.id] || 0));
-            let nextVal = currentVal + upg.increment;
-            ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
-            ui.costText.setText(`💰 ${cost}`);
-            
-            if (stats.gold < cost) {
-                ui.buyBtn.setAlpha(0.5);
-                ui.costText.setFill('#ff0000');
-            } else {
-                ui.buyBtn.setAlpha(1);
-                ui.costText.setFill('#000');
-            }
-        });
+        if (this.upgrades && this.upgradeUI) {
+            this.upgrades.forEach(upg => {
+                const ui = this.upgradeUI[upg.id];
+                if (!ui) return;
+                const level = stats[upg.id + 'Level'] || 1;
+                const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, level - 1));
+                const suffix = upg.suffix || '';
+                
+                ui.title.setText(`${upg.name} Lv.${level}`);
+                
+                let currentVal = upg.id === 'damage' ? stats.attack : (upg.id === 'hp' ? stats.maxHp : (stats[upg.id] || 0));
+                let nextVal = currentVal + upg.increment;
+                ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
+                ui.costText.setText(`💰 ${cost}`);
+                
+                if (stats.gold < cost) {
+                    ui.buyBtn.setAlpha(0.5);
+                    ui.costText.setFill('#ff0000');
+                } else {
+                    ui.buyBtn.setAlpha(1);
+                    ui.costText.setFill('#000');
+                }
+            });
+        }
     }
 
     update(time, delta) {
@@ -352,7 +374,7 @@ export default class UIScene extends Phaser.Scene {
         const bossAlive = game.boss && game.boss.active && game.boss.getData && game.boss.getData('alive') && (game.boss.x - px) > -50 && (game.boss.x - px) < 550;
         const listAlive = game.enemyList && game.enemyList.some(e => e && e.active && e.getData && e.getData('alive') && (e.x - px) > -50 && (e.x - px) < 550);
         hasEnemy = !!(bossAlive || listAlive);
-        this.debugText.setText(`DET: B:${bossAlive ? 'Y' : 'N'} L:${listAlive ? 'Y' : 'N'} H:${hasEnemy ? 'Y' : 'N'}`).setAlpha(1);
+        // this.debugText.setText(`DET: B:${bossAlive ? 'Y' : 'N'} L:${listAlive ? 'Y' : 'N'} H:${hasEnemy ? 'Y' : 'N'}`).setAlpha(1);
 
         for (let i = 0; i < 4; i++) {
             // Update Cooldown Timers

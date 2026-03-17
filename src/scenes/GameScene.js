@@ -1,4 +1,5 @@
 import { drawPlayerOnGraphics, drawSwordOnGraphics, drawEnemyOnGraphics } from '../utils/DrawHelpers.js';
+import { SaveSystem } from '../utils/SaveSystem.js';
 
 // Enemy type pools per stage tier
 const ENEMY_POOLS = [
@@ -437,7 +438,7 @@ export default class GameScene extends Phaser.Scene {
                 onUpdate: () => {
                     traveled = fb.x - px;
                     this.enemyList.forEach(e => {
-                        if (!e || !e.active || !e.getData('alive') || fired.has(e)) return;
+                        if (!e || !e.active || !e.getData || !e.getData('alive') || fired.has(e)) return;
                         const d = Phaser.Math.Distance.Between(fb.x, py, e.x, e.y);
                         if (d < 50) { fired.add(e); hitCallback(e); }
                     });
@@ -460,14 +461,14 @@ export default class GameScene extends Phaser.Scene {
             });
             // Hit immediately on cast
             this.enemyList.forEach(e => {
-                if (!e || !e.active || !e.getData('alive')) return;
+                if (!e || !e.active || !e.getData || !e.getData('alive')) return;
                 const d = Phaser.Math.Distance.Between(px, py, e.x, e.y);
                 if (d < range) { hitCallback(e); this.slowEnemy(e, 1200); }
             });
         } else if (name === 'lightning') {
             // Lightning bolt lines down from sky
-            const numEnemies = this.enemyList.filter(e => e && e.active && e.getData('alive'));
-            numEnemies.forEach(e => {
+            const targets = this.enemyList.filter(e => e && e.active && e.getData && e.getData('alive'));
+            targets.forEach(e => {
                 const d = Phaser.Math.Distance.Between(px, py, e.x, e.y);
                 if (d > range) return;
                 hitCallback(e);
@@ -493,7 +494,8 @@ export default class GameScene extends Phaser.Scene {
 
     slowEnemy(container, duration) {
         const physRect = container.getData('physRect');
-        const origVx = physRect.body.velocity.x;
+        if (!physRect || !physRect.body) return;
+        const origVx = physRect.body.velocity.x || 0;
         physRect.body.setVelocityX(origVx * 0.35);
         container.setTint(0x88ccff);
         this.time.delayedCall(duration, () => {
@@ -538,20 +540,24 @@ export default class GameScene extends Phaser.Scene {
     // ─── Combat ───────────────────────────────────────────────────────────────
 
     dealDamage(container, dmg, isSlow = false) {
-        if (!container.getData('alive')) return;
+        if (!container || !container.active || (container.getData && !container.getData('alive'))) return;
 
         // Critical hit (20% chance, 2x damage)
         const isCrit = Math.random() < 0.20;
-        const finalDmg = isCrit ? dmg * 2 : dmg;
+        const finalDmg = Math.floor(isCrit ? dmg * 2 : dmg);
 
-        const newHp = container.getData('hp') - finalDmg;
-        container.setData('hp', Math.max(0, newHp));
-        const maxHp = container.getData('maxHp');
+        const currentHp = container.getData('hp') || 0;
+        const newHp = Math.max(0, currentHp - finalDmg);
+        
+        if (isNaN(newHp)) return; // Guard against corruption
+        
+        container.setData('hp', newHp);
+        const maxHp = container.getData('maxHp') || 100;
 
         // Damage number
         const dmgColor = isCrit ? '#ff0000' : '#ffffff';
         const prefix = isCrit ? '💥 ' : '';
-        this.showDamageNumber(container.x, container.y - container.getData('size') / 2 - 20,
+        this.showDamageNumber(container.x, container.y - (container.getData('size') || 40) / 2 - 20,
             prefix + Math.floor(finalDmg), dmgColor, isCrit ? 26 : 18);
 
         // Update HP bar
@@ -562,13 +568,15 @@ export default class GameScene extends Phaser.Scene {
             }
         } else {
             const barFill = container.getData('barFill');
-            const pct = Math.max(0, newHp / maxHp);
-            barFill.width = Math.max(0, container.getData('barW') * pct);
+            if (barFill && barFill.active) {
+                const pct = Math.max(0, newHp / maxHp);
+                barFill.width = Math.max(0, (container.getData('barW') || 40) * pct);
+            }
         }
 
-        // Flash enemy (can't use setTint on Graphics, so use alpha flash)
+        // Flash enemy
         const gfx = container.getData('gfx');
-        if (gfx) {
+        if (gfx && gfx.active) {
             gfx.setAlpha(0.5);
             this.time.delayedCall(80, () => {
                 if (gfx && gfx.active) gfx.setAlpha(1);
@@ -662,6 +670,9 @@ export default class GameScene extends Phaser.Scene {
         
         // Stage Reward: 1000 Gems
         this.playerStats.gems += 1000;
+        this.playerStats.stage = this.currentStage + 1; // Prepare next stage for save
+        SaveSystem.save(this.playerStats);
+
         this.time.delayedCall(300, () => {
             this.showDamageNumber(this.playerPhysics.x, this.playerPhysics.y - 130, '+1000 💎', '#00ffff', 28);
         });
@@ -672,7 +683,7 @@ export default class GameScene extends Phaser.Scene {
             this.cameras.main.fadeOut(400, 0, 0, 0);
             this.cameras.main.once('camerafadeoutcomplete', () => {
                 this.scene.start('GameScene', { 
-                    stage: this.currentStage + 1, 
+                    stage: this.playerStats.stage, 
                     playerStats: this.playerStats 
                 });
             });
@@ -759,8 +770,10 @@ export default class GameScene extends Phaser.Scene {
                 let timer = nearest.getData('attackTimer') || 0;
                 timer -= delta;
                 if (timer <= 0) {
-                    const dmg = nearest.getData('attack');
-                    this.playerStats.hp = Math.max(0, this.playerStats.hp - dmg);
+                    const dmg = Math.floor(nearest.getData('attack') || 1);
+                    this.playerStats.hp = Math.floor(Math.max(0, this.playerStats.hp - dmg));
+                    
+                    if (isNaN(this.playerStats.hp)) this.playerStats.hp = 1;
                     
                     // Enemy lunge animation
                     this.tweens.add({

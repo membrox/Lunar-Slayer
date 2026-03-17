@@ -1,3 +1,5 @@
+import { SaveSystem } from '../utils/SaveSystem.js';
+
 export default class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
@@ -239,8 +241,11 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     startGame(classes) {
+        const savedData = SaveSystem.load();
         const cls = classes[this.selectedClass];
-        const baseStats = {
+        
+        // Initial defaults
+        let baseStats = {
             hp: 100, maxHp: 100,
             xp: 0, level: 1,
             attack: 15, defense: 3,
@@ -254,20 +259,25 @@ export default class MenuScene extends Phaser.Scene {
             critLevel: 1,
             gems: 0,
             emeralds: 0,
-            autoSkills: false
+            autoSkills: false,
+            stage: 1
         };
 
-        // Apply class bonuses
-        Object.entries(cls.bonuses).forEach(([k, v]) => {
-            if (baseStats[k] !== undefined) baseStats[k] += v;
-            else baseStats[k] = v;
-        });
-        // Sync hp max
-        if (cls.bonuses.hp) baseStats.maxHp = baseStats.hp;
+        // If class matches saved class, use saved stats entirely
+        if (savedData && savedData.classIndex === this.selectedClass) {
+            baseStats = { ...baseStats, ...savedData };
+        } else {
+            // Apply class bonuses to fresh start
+            Object.entries(cls.bonuses).forEach(([k, v]) => {
+                if (baseStats[k] !== undefined) baseStats[k] += v;
+                else baseStats[k] = v;
+            });
+            if (cls.bonuses.hp) baseStats.maxHp = baseStats.hp;
+        }
 
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.on('camerafadeoutcomplete', () => {
-            this.scene.start('GameScene', { stage: 1, playerStats: baseStats });
+            this.scene.start('GameScene', { stage: baseStats.stage || 1, playerStats: baseStats });
         });
     }
 
