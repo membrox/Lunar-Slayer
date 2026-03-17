@@ -520,13 +520,13 @@ export default class UIScene extends Phaser.Scene {
         const w = this.scale.width;
         const h = this.scale.height;
 
-        const overlay = this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.8).setInteractive();
-        const panel = this.add.container(w/2, h/2);
-        
-        const bg = this.add.rectangle(0, 0, 650, 500, 0x1a1a2e).setStrokeStyle(4, 0x444466);
-        const title = this.add.text(0, -220, 'EQUIPMENT', { fontSize: '32px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
-        const closeBtn = this.add.text(300, -220, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
-        
+        const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive();
+        const panel = this.add.container(w / 2, h / 2);
+
+        const bg = this.add.rectangle(0, 0, 720, 900, 0x1a1a2e).setStrokeStyle(4, 0x444466);
+        const title = this.add.text(0, -420, 'EQUIPMENT', { fontSize: '32px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
+        const closeBtn = this.add.text(330, -420, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
+
         panel.add([bg, title, closeBtn]);
 
         closeBtn.on('pointerdown', () => {
@@ -535,115 +535,195 @@ export default class UIScene extends Phaser.Scene {
             this.isEquipmentOpen = false;
         });
 
-        // ── Equipment Slots ──────────────────────────────────────────────────
-        const slots = [
-            { id: 'weapon', label: 'Waffe' },
-            { id: 'helmet', label: 'Hut' },
-            { id: 'armor', label: 'Robe' },
-            { id: 'ring1', label: 'Ring' },
-            { id: 'ring2', label: 'Ring' },
-            { id: 'accessory', label: 'Extra' }
+        // Current filter
+        this.currentEquipTab = this.currentEquipTab || 'weapon';
+        this.selectedInventoryId = this.selectedInventoryId || 'wpn_01';
+
+        // ── Top Detail Panel ──────────────────────────────────────────────────
+        this.renderDetailPanel(panel);
+
+        // ── Tabs ──────────────────────────────────────────────────────────────
+        const tabs = [
+            { id: 'weapon', name: 'Weapon' },
+            { id: 'shield', name: 'Shield' },
+            { id: 'necklace', name: 'Necklace' }
         ];
 
-        const slotSize = 85;
-        const slotsStartX = -250;
-        const slotsStartY = -120;
-        
-        slots.forEach((slot, i) => {
-            const sx = slotsStartX + (i % 2) * 110;
-            const sy = slotsStartY + Math.floor(i / 2) * 100;
-            const item = this.equipment.equipped[slot.id];
-            
-            const slotBg = this.add.rectangle(sx, sy, slotSize, slotSize, 0x111122).setStrokeStyle(2, 0x444466);
-            const slotLabel = this.add.text(sx, sy + 30, slot.label, { fontSize: '10px', fill: '#666' }).setOrigin(0.5);
-            panel.add([slotBg, slotLabel]);
+        tabs.forEach((tab, i) => {
+            const tx = -200 + i * 200;
+            const ty = 380;
+            const btn = this.add.rectangle(tx, ty, 180, 50, this.currentEquipTab === tab.id ? 0x444466 : 0x222233).setInteractive();
+            const txt = this.add.text(tx, ty, tab.name, { fontSize: '18px', fill: '#fff' }).setOrigin(0.5);
+            btn.on('pointerdown', () => {
+                this.currentEquipTab = tab.id;
+                this.refreshEquipmentMenu(panel);
+            });
+            panel.add([btn, txt]);
+        });
 
-            if (item) {
-                const itemIcon = this.add.text(sx, sy - 5, item.icon, { fontSize: '32px' }).setOrigin(0.5).setInteractive();
-                const rarityColor = RARITIES[item.rarity].color;
-                slotBg.setStrokeStyle(3, rarityColor);
-                panel.add(itemIcon);
-                
-                itemIcon.on('pointerdown', () => {
-                    this.equipment.unequip(slot.id);
-                    overlay.destroy();
-                    panel.destroy();
-                    this.isEquipmentOpen = false;
-                    this.showEquipmentMenu(); // Refresh
-                    this.syncGameSceneStats();
-                });
-                
-                // Tooltip on Hover
-                itemIcon.on('pointerover', (pointer) => {
-                    this.showItemTooltip(item, pointer);
-                    slotBg.setStrokeStyle(4, 0xffffff);
-                });
-                itemIcon.on('pointerout', () => {
-                    this.hideItemTooltip();
-                    slotBg.setStrokeStyle(3, rarityColor);
-                });
+        // ── Bottom Action Buttons ─────────────────────────────────────────────
+        const summonBtn = this.add.rectangle(-180, 320, 250, 60, 0xd35400).setInteractive();
+        this.add.text(-180, 320, 'Summon', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        panel.add(summonBtn);
+        summonBtn.on('pointerdown', () => {
+            overlay.destroy();
+            panel.destroy();
+            this.isEquipmentOpen = false;
+            this.showSummonMenu();
+        });
+
+        const enhanceAllBtn = this.add.rectangle(180, 320, 250, 60, 0x27ae60).setInteractive();
+        this.add.text(180, 320, 'Enhance All', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        panel.add(enhanceAllBtn);
+        enhanceAllBtn.on('pointerdown', () => {
+            if (this.equipment.enhanceAll()) {
+                this.refreshEquipmentMenu(panel);
+                this.syncGameSceneStats();
             }
         });
 
-        // ── Inventory Grid ───────────────────────────────────────────────────
-        const invStartX = 40;
-        const invStartY = -120;
-        const invSpacing = 95;
-        
-        const invLabel = this.add.text(invStartX, invStartY - 50, 'INVENTAR', { fontSize: '18px', fill: '#ffffff' }).setOrigin(0, 0.5);
-        panel.add(invLabel);
-        
-        this.equipment.inventory.forEach((item, i) => {
-            const ix = invStartX + (i % 3) * invSpacing;
-            const iy = invStartY + Math.floor(i / 3) * invSpacing;
-            
-            const rarityInfo = RARITIES[item.rarity];
-            const itemBg = this.add.rectangle(ix + 40, iy, 85, 85, 0x222233).setStrokeStyle(2, rarityInfo.color).setInteractive();
-            const itemIcon = this.add.text(ix + 40, iy - 5, item.icon, { fontSize: '34px' }).setOrigin(0.5);
-            
-            panel.add([itemBg, itemIcon]);
-            
-            itemBg.on('pointerdown', () => {
-                let targetSlot = item.type;
-                if (item.type === 'ring') targetSlot = this.equipment.equipped.ring1 ? 'ring2' : 'ring1';
-                
-                if (this.equipment.equip(i, targetSlot)) {
-                    overlay.destroy();
-                    panel.destroy();
-                    this.isEquipmentOpen = false;
-                    this.showEquipmentMenu(); // Refresh
-                    this.syncGameSceneStats();
-                }
-            });
+        // ── Grid System ───────────────────────────────────────────────────────
+        this.renderInventoryGrid(panel);
+    }
 
-            itemBg.on('pointerover', (pointer) => {
-                this.showItemTooltip(item, pointer);
-                itemBg.setStrokeStyle(4, 0xffffff);
-            });
-            itemBg.on('pointerout', () => {
-                this.hideItemTooltip();
-                itemBg.setStrokeStyle(2, rarityInfo.color);
-            });
+    renderDetailPanel(panel) {
+        const id = this.selectedInventoryId;
+        const invItem = this.equipment.inventory[id];
+        const dbItem = this.equipment.getItemById(id);
+        if (!invItem || !dbItem) return;
+
+        const detailBg = this.add.rectangle(0, -250, 680, 280, 0x111122).setStrokeStyle(2, 0x444466);
+        panel.add(detailBg);
+
+        // Big Icon
+        const rarity = RARITIES[dbItem.rarity];
+        const iconBg = this.add.rectangle(-250, -250, 140, 140, 0x000000, 0.5).setStrokeStyle(3, rarity.color);
+        const icon = this.add.text(-250, -260, dbItem.icon, { fontSize: '80px' }).setOrigin(0.5);
+        
+        const lvlLabel = this.add.text(-310, -195, `Lv.${invItem.level}`, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
+        
+        // Equipped marker
+        if (this.equipment.isEquipped(id)) {
+            const eFlag = this.add.text(-195, -310, 'E', { fontSize: '24px', fill: '#f00', fontStyle: 'bold', backgroundColor: '#fff', padding: 2 });
+            panel.add(eFlag);
+        }
+
+        // Stats
+        const name = this.add.text(-160, -320, dbItem.name, { fontSize: '28px', fill: '#fff', fontStyle: 'bold' });
+        const rarityName = this.add.text(320, -320, rarity.name, { fontSize: '18px', fill: rarity.colorStr }).setOrigin(1, 0);
+
+        const posEffect = this.add.text(-160, -280, 'Possession Effect:', { fontSize: '14px', fill: '#fa0' });
+        let posStr = '';
+        Object.keys(dbItem.baseStats).forEach(k => {
+            posStr += `${k}: +${(dbItem.baseStats[k] * 0.01 * invItem.level).toFixed(1)}  `;
+        });
+        const posVal = this.add.text(-160, -260, posStr, { fontSize: '18px', fill: '#2ecc71' });
+
+        const eqEffect = this.add.text(-160, -220, 'Equipped Effect:', { fontSize: '14px', fill: '#fa0' });
+        let eqStr = '';
+        const mult = 1 + (invItem.level - 1) * 0.2;
+        Object.keys(dbItem.baseStats).forEach(k => {
+            eqStr += `${k}: +${(dbItem.baseStats[k] * mult).toFixed(1)}  `;
+        });
+        const eqVal = this.add.text(-160, -200, eqStr, { fontSize: '18px', fill: '#2ecc71' });
+
+        // Action Buttons
+        const equipBtn = this.add.rectangle(-50, -150, 180, 50, 0x2980b9).setInteractive();
+        const equipTxt = this.add.text(-50, -150, this.equipment.isEquipped(id) ? 'Unequip' : 'Equip', { fontSize: '18px', fill: '#fff' }).setOrigin(0.5);
+        equipBtn.on('pointerdown', () => {
+            if (this.equipment.isEquipped(id)) {
+                // Find slot
+                const slot = Object.keys(this.equipment.equipped).find(k => this.equipment.equipped[k] && this.equipment.equipped[k].id === id);
+                this.equipment.unequip(slot);
+            } else {
+                let targetSlot = dbItem.type;
+                if (dbItem.type === 'ring') targetSlot = this.equipment.equipped.ring1 ? 'ring2' : 'ring1';
+                this.equipment.equip(id, targetSlot);
+            }
+            this.refreshEquipmentMenu(panel);
+            this.syncGameSceneStats();
         });
 
-        // ── Loot Button (For Testing/Demo) ──────────────────────────────────
-        const lootBtnX = -250;
-        const lootBtnY = 180;
-        const lootBtn = this.add.rectangle(lootBtnX, lootBtnY, 120, 50, 0x442266).setStrokeStyle(2, 0xaa44ff).setInteractive();
-        const lootText = this.add.text(lootBtnX, lootBtnY, 'LOOT!', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        panel.add([lootBtn, lootText]);
-
-        lootBtn.on('pointerdown', () => {
-            const newItem = this.equipment.generateRandomItem();
-            if (newItem) {
-                this.equipment.inventory.push(newItem);
-                this.equipment.save();
-                overlay.destroy();
-                panel.destroy();
-                this.isEquipmentOpen = false;
-                this.showEquipmentMenu();
+        const enhanceBtn = this.add.rectangle(150, -150, 180, 50, 0x27ae60).setInteractive();
+        const enhanceTxt = this.add.text(150, -150, 'Enhance', { fontSize: '18px', fill: '#fff' }).setOrigin(0.5);
+        enhanceBtn.on('pointerdown', () => {
+            if (this.equipment.enhanceItem(id)) {
+                this.refreshEquipmentMenu(panel);
+                this.syncGameSceneStats();
             }
         });
+
+        // XP Bar (Detail)
+        const cost = invItem.level * rarity.enhanceCost;
+        const barW = 120;
+        const xpBg = this.add.rectangle(-250, -165, barW, 14, 0x000000).setOrigin(0.5);
+        const ratio = Math.min(1, invItem.count / cost);
+        const xpFill = this.add.rectangle(-250 - barW / 2, -165, barW * ratio, 14, 0x3498db).setOrigin(0, 0.5);
+        const xpText = this.add.text(-250, -150, `${invItem.count}/${cost}`, { fontSize: '12px', fill: '#fff' }).setOrigin(0.5);
+
+        panel.add([iconBg, icon, lvlLabel, name, rarityName, posEffect, posVal, eqEffect, eqVal, equipBtn, equipTxt, enhanceBtn, enhanceTxt, xpBg, xpFill, xpText]);
+    }
+
+    renderInventoryGrid(panel) {
+        const gridStartX = -260;
+        const gridStartY = -50;
+        const spacing = 130;
+        const cols = 5;
+
+        const filtered = Object.values(this.equipment.inventory).filter(invItem => {
+            const db = this.equipment.getItemById(invItem.id);
+            if (this.currentEquipTab === 'weapon') return db.type === 'weapon';
+            if (this.currentEquipTab === 'shield') return db.type === 'armor'; // Mapping armor to shield for UI
+            if (this.currentEquipTab === 'necklace') return db.type === 'accessory' || db.type === 'ring';
+            return false;
+        });
+
+        filtered.forEach((invItem, i) => {
+            const db = this.equipment.getItemById(invItem.id);
+            const r = i % cols;
+            const c = Math.floor(i / cols);
+            const x = gridStartX + r * spacing;
+            const y = gridStartY + c * spacing;
+
+            const rarity = RARITIES[db.rarity];
+            const slot = this.add.rectangle(x, y, 120, 120, 0x222233).setStrokeStyle(3, this.selectedInventoryId === db.id ? 0xffffff : rarity.color).setInteractive();
+            const icon = this.add.text(x, y - 10, db.icon, { fontSize: '50px' }).setOrigin(0.5);
+            
+            const lvl = this.add.text(x - 50, y + 40, `Lv.${invItem.level}`, { fontSize: '14px', fill: '#fff' });
+            
+            // Progress Bar
+            const cost = invItem.level * rarity.enhanceCost;
+            const barW = 110;
+            const pBg = this.add.rectangle(x, y + 55, barW, 10, 0x000000);
+            const ratio = Math.min(1, invItem.count / cost);
+            const pFill = this.add.rectangle(x - barW / 2, y + 55, barW * ratio, 10, 0x3498db).setOrigin(0, 0.5);
+            const pText = this.add.text(x, y + 55, `${invItem.count}/${cost}`, { fontSize: '10px', fill: '#fff' }).setOrigin(0.5);
+
+            if (this.equipment.isEquipped(db.id)) {
+                const eColor = this.add.text(x + 40, y - 50, 'E', { fontSize: '16px', fill: '#f00', backgroundColor: '#fff', padding: 2 });
+                panel.add(eColor);
+            }
+
+            slot.on('pointerdown', () => {
+                this.selectedInventoryId = db.id;
+                this.refreshEquipmentMenu(panel);
+            });
+
+            panel.add([slot, icon, lvl, pBg, pFill, pText]);
+        });
+    }
+
+    refreshEquipmentMenu(panel) {
+        if (!panel) return;
+        
+        // Find the overlay (it's the rectangle added before the panel)
+        // Since we are inside UIScene, we can just look for children
+        const overlay = this.children.list.find(c => c.type === 'Rectangle' && c.width === this.scale.width && c.fillAlpha === 0.85);
+        if (overlay) overlay.destroy();
+        if (panel) panel.destroy();
+        
+        this.isEquipmentOpen = false;
+        this.showEquipmentMenu();
     }
 
     showItemTooltip(item, pointer) {
@@ -780,9 +860,9 @@ export default class UIScene extends Phaser.Scene {
             this.updateStats(this.stats);
             SaveSystem.save(this.stats);
 
-            // Add to inventory
+            // Add to inventory (Using the new addItem method)
             pullRes.items.forEach(item => {
-                this.equipment.inventory.push(item);
+                this.equipment.addItem(item);
             });
             this.equipment.save();
 

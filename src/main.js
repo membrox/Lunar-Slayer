@@ -8,6 +8,7 @@ const config = {
   type: Phaser.AUTO,
   width: 720,
   height: 1280,
+  pixelArt: true,
   parent: 'game',
   backgroundColor: '#000000',
   physics: {
