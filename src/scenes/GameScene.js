@@ -484,15 +484,24 @@ export default class GameScene extends Phaser.Scene {
                 }
             });
         } else if (name === 'ice') {
-            // Ice burst wave ring
+            // Ice burst wave ring + Ice Sprite
             const g = this.add.graphics();
             g.lineStyle(6, 0x88ddff, 1);
             g.strokeCircle(0, 0, 10);
             g.x = px; g.y = py;
+            
+            // Scaled Ice sprite in middle
+            const iceSprite = this.add.sprite(px, py, 'skill_sheet', 0).setScale(0).setAlpha(0.8);
+            
             this.tweens.add({
                 targets: g, scaleX: range / 10, scaleY: range / 10, alpha: 0,
                 duration: 600, ease: 'Cubic.Out',
                 onComplete: () => g.destroy()
+            });
+            this.tweens.add({
+                targets: iceSprite, scale: 2, alpha: 0,
+                duration: 500, ease: 'Back.Out',
+                onComplete: () => iceSprite.destroy()
             });
             // Hit immediately on cast
             this.enemyList.forEach(e => {
@@ -501,15 +510,21 @@ export default class GameScene extends Phaser.Scene {
                 if (d < range) { hitCallback(e); this.slowEnemy(e, 1200); }
             });
         } else if (name === 'lightning') {
-            // Lightning bolt lines down from sky
+            // Lightning bolt lines down from sky + Lightning Sprite
             const targets = this.enemyList.filter(e => e && e.active && e.getData && e.getData('alive'));
             targets.forEach(e => {
                 const d = Phaser.Math.Distance.Between(px, py, e.x, e.y);
                 if (d > range) return;
                 hitCallback(e);
+                
                 const bolt = this.add.graphics();
                 bolt.lineStyle(4, 0xFFFF00, 1);
                 const ey = e.y - e.getData('size') / 2;
+                
+                // Lightning sprite at impact
+                const lSprite = this.add.sprite(e.x, ey, 'skill_sheet', 1).setScale(1.5).setAlpha(1);
+                this.tweens.add({ targets: lSprite, alpha: 0, scale: 2, duration: 250, onComplete: () => lSprite.destroy() });
+
                 bolt.beginPath();
                 // Zigzag from top to enemy
                 let lx = e.x + Phaser.Math.Between(-20, 20);
@@ -542,16 +557,16 @@ export default class GameScene extends Phaser.Scene {
     }
 
     spawnHealEffect(x, y) {
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const dot = this.add.circle(x, y, 5, 0x00ff88);
+        for (let i = 0; i < 10; i++) {
+            const angle = (i / 10) * Math.PI * 2;
+            const heart = this.add.sprite(x, y, 'skill_sheet', 2).setScale(0.5);
             this.tweens.add({
-                targets: dot,
-                x: x + Math.cos(angle) * 60,
-                y: y + Math.sin(angle) * 60,
+                targets: heart,
+                x: x + Math.cos(angle) * 80,
+                y: y + Math.sin(angle) * 80,
                 alpha: 0, scaleX: 0, scaleY: 0,
-                duration: 600, ease: 'Cubic.Out',
-                onComplete: () => dot.destroy()
+                duration: 800, ease: 'Cubic.Out',
+                onComplete: () => heart.destroy()
             });
         }
     }

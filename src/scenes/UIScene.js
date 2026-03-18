@@ -98,9 +98,9 @@ export default class UIScene extends Phaser.Scene {
         const skillY = panelTop + 50;
         const skillData = [
             { name: 'Feuer', icon: '🔥', color: 0xcc3300 },
-            { name: 'Frost', icon: '❄️', color: 0x004488 },
-            { name: 'Blitz', icon: '⚡', color: 0xaaaa00 },
-            { name: 'Heilen', icon: '💚', color: 0x006633 },
+            { name: 'Frost', sprite: 'skill_sheet', frame: 0, color: 0x004488 },
+            { name: 'Blitz', sprite: 'skill_sheet', frame: 1, color: 0xaaaa00 },
+            { name: 'Heilen', sprite: 'skill_sheet', frame: 2, color: 0x006633 },
         ];
         const sW = 80;
         const totalSW = skillData.length * (sW + 10) - 10;
@@ -110,7 +110,16 @@ export default class UIScene extends Phaser.Scene {
             const bx = startSX + i * (sW + 10);
             const bg = this.add.rectangle(bx, skillY, sW, sW, 0x111122).setOrigin(0.5).setStrokeStyle(2, 0x444466).setInteractive();
             this.add.rectangle(bx, skillY, sW - 8, sW - 8, sk.color).setOrigin(0.5).setAlpha(0.6);
-            this.add.text(bx, skillY - 5, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
+            
+            if (sk.sprite) {
+                const sprite = this.add.sprite(bx, skillY, sk.sprite, sk.frame).setOrigin(0.5);
+                // Scale sprite to fit the button nicely
+                const scale = (sW - 20) / Math.max(sprite.width, sprite.height);
+                sprite.setScale(scale);
+                panel.add(sprite);
+            } else {
+                this.add.text(bx, skillY - 5, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
+            }
             
             // CD Overlay
             const cdOverlay = this.add.rectangle(bx, skillY + sW / 2, sW - 4, 0, 0x000000, 0.8).setOrigin(0.5, 1);

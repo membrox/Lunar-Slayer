@@ -45,12 +45,16 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('mage_raw_1', '/mage_sheet_1.png');
         this.load.image('mage_raw_2', '/mage_sheet_2.png');
         this.load.image('game_bg', '/background1.png');
+        this.load.image('testzauber_raw', '/testzauber.png');
     }
 
     create() {
         // Process transparency for Mage Sprites
         this.makeTransparent('mage_raw_1', 'mage_sheet_1', 192, 256);
         this.makeTransparent('mage_raw_2', 'mage_sheet_2', 256, 256);
+        
+        // Process Skill Spritesheet (3 frames horizontal)
+        this.makeSkillSheet('testzauber_raw', 'skill_sheet');
 
         this.cameras.main.fadeOut(300, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -79,6 +83,21 @@ export default class BootScene extends Phaser.Scene {
             }
         }
         ctx.putImageData(imageData, 0, 0);
+        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
+    }
+
+    makeSkillSheet(sourceKey, targetKey) {
+        const source = this.textures.get(sourceKey).getSourceImage();
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(source, 0, 0);
+
+        // testzauber.png has Ice, Lightning, Heart in one row (3 frames)
+        const frameW = Math.floor(source.width / 3);
+        const frameH = source.height;
+
         this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
     }
 }
