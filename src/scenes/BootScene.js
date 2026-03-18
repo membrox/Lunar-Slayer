@@ -88,16 +88,29 @@ export default class BootScene extends Phaser.Scene {
 
     makeSkillSheet(sourceKey, targetKey) {
         const source = this.textures.get(sourceKey).getSourceImage();
-        const canvas = document.createElement('canvas');
-        canvas.width = source.width;
-        canvas.height = source.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(source, 0, 0);
-
+        
         // testzauber.png has Ice, Lightning, Heart in one row (3 frames)
         const frameW = Math.floor(source.width / 3);
         const frameH = source.height;
 
-        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
+        // We want only the large central icon. 
+        // We'll crop to the center 60% of each frame.
+        const cropW = Math.floor(frameW * 0.6);
+        const cropH = Math.floor(frameH * 0.6);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cropW * 3;
+        canvas.height = cropH;
+        const ctx = canvas.getContext('2d');
+
+        for (let i = 0; i < 3; i++) {
+            const srcX = i * frameW + (frameW - cropW) / 2;
+            const srcY = (frameH - cropH) / 2;
+            const destX = i * cropW;
+            const destY = 0;
+            ctx.drawImage(source, srcX, srcY, cropW, cropH, destX, destY, cropW, cropH);
+        }
+
+        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: cropW, frameHeight: cropH });
     }
 }
