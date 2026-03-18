@@ -93,10 +93,10 @@ export default class BootScene extends Phaser.Scene {
         const frameW = Math.floor(source.width / 3);
         const frameH = source.height;
 
-        // We want only the large central icon. 
-        // We'll crop to the center 85% of each frame to avoid cutting off edges.
-        const cropW = Math.floor(frameW * 0.85);
-        const cropH = Math.floor(frameH * 0.85);
+        // 80% width is safe for heart edges. 
+        // 60% height is the intended "sweet spot" to hide dots without cutting the heart too much.
+        const cropW = Math.floor(frameW * 0.80);
+        const cropH = Math.floor(frameH * 0.60);
 
         const canvas = document.createElement('canvas');
         canvas.width = cropW * 3;
