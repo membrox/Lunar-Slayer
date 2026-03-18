@@ -94,9 +94,9 @@ export default class BootScene extends Phaser.Scene {
         const frameH = source.height;
 
         // We want only the large central icon. 
-        // We'll crop to the center 60% of each frame.
-        const cropW = Math.floor(frameW * 0.6);
-        const cropH = Math.floor(frameH * 0.6);
+        // We'll crop to the center 85% of each frame to avoid cutting off edges.
+        const cropW = Math.floor(frameW * 0.85);
+        const cropH = Math.floor(frameH * 0.85);
 
         const canvas = document.createElement('canvas');
         canvas.width = cropW * 3;
