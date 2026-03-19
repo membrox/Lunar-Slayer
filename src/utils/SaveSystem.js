@@ -14,6 +14,7 @@ export class SaveSystem {
             hpLevel: 1,
             hpRegenLevel: 1,
             critLevel: 1,
+            critDamageLevel: 1,
             gems: 0,
             emeralds: 0,
             stage: 1,

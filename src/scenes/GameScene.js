@@ -39,6 +39,7 @@ export default class GameScene extends Phaser.Scene {
             hpLevel: Number(s.hpLevel) || 1,
             hpRegenLevel: Number(s.hpRegenLevel) || 1,
             critLevel: Number(s.critLevel) || 1,
+            critDamageLevel: Number(s.critDamageLevel) || 1,
             gems: Number(s.gems) || 0,
             emeralds: Number(s.emeralds) || 0,
             autoSkills: !!s.autoSkills,
@@ -199,11 +200,10 @@ export default class GameScene extends Phaser.Scene {
             this.playerContainer.add([this.playerGfx, this.weaponGfx]);
         }
 
-        // ── Equipment Visual Layers ──────────────────────────────────────────
-        // Using placeholders until specific assets are provided
-        this.hatLayer = this.add.text(0, -50, '', { fontSize: '24px' }).setOrigin(0.5);
-        this.armorLayer = this.add.text(0, 0, '', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.5);
-        this.playerContainer.add([this.armorLayer, this.hatLayer]);
+        // ── Player Health Bar (Mini) ──────────────────────────────────────────
+        this.playerHpBar = this.add.graphics();
+        this.playerContainer.add(this.playerHpBar);
+        this.playerHpBar.setPosition(0, 45); // Below player
 
         this.updateEquipmentVisuals();
 
@@ -580,9 +580,12 @@ export default class GameScene extends Phaser.Scene {
     dealDamage(container, dmg, isSlow = false) {
         if (!container || !container.active || (container.getData && !container.getData('alive'))) return;
 
-        // Critical hit (20% chance, 2x damage)
-        const isCrit = Math.random() < 0.20;
-        const finalDmg = Math.floor(isCrit ? dmg * 2 : dmg);
+        // Dynamic Critical hit logic
+        const critRate = 0.05 + (this.playerStats.critLevel - 1) * 0.01; // Starts 5%, +1% per level
+        const critMult = 1.5 + (this.playerStats.critDamageLevel - 1) * 0.1; // Starts 1.5x, +0.1x per level
+        
+        const isCrit = Math.random() < critRate;
+        const finalDmg = Math.floor(isCrit ? dmg * critMult : dmg);
 
         const currentHp = container.getData('hp') || 0;
         const newHp = Math.max(0, currentHp - finalDmg);
@@ -872,6 +875,20 @@ export default class GameScene extends Phaser.Scene {
             if (uiScene && uiScene.scene.isActive() && uiScene.updateStats) {
                 uiScene.updateStats(this.playerStats, this.currentStage, this.enemiesKilled, this.totalEnemies);
             }
+
+            // Update Player Mini HP Bar
+            if (this.playerHpBar) {
+                const barW = 60;
+                const barH = 6;
+                const ratio = Math.max(0, this.playerStats.hp / this.playerStats.maxHp);
+                this.playerHpBar.clear();
+                // BG
+                this.playerHpBar.fillStyle(0x000000, 0.5);
+                this.playerHpBar.fillRect(-barW / 2, 0, barW, barH);
+                // Fill
+                this.playerHpBar.fillStyle(0x00ff00, 1);
+                this.playerHpBar.fillRect(-barW / 2, 0, barW * ratio, barH);
+            }
         } catch (err) {
             console.error('GameScene Update Error:', err);
         }
@@ -920,6 +937,8 @@ export default class GameScene extends Phaser.Scene {
         } else if (id === 'crit') {
             this.baseStats.crit = (this.baseStats.crit || 0.05) + increment;
             this.baseStats.critLevel = (this.baseStats.critLevel || 1) + 1;
+        } else if (id === 'critDamage') {
+            this.baseStats.critDamageLevel = (this.baseStats.critDamageLevel || 1) + 1;
         }
 
         // Increment gold is usually handled in UIScene, but we sync it here
@@ -963,6 +982,7 @@ export default class GameScene extends Phaser.Scene {
         this.playerStats.hpLevel = this.baseStats.hpLevel;
         this.playerStats.hpRegenLevel = this.baseStats.hpRegenLevel;
         this.playerStats.critLevel = this.baseStats.critLevel;
+        this.playerStats.critDamageLevel = this.baseStats.critDamageLevel;
         this.playerStats.gold = this.baseStats.gold;
         
         this.updateEquipmentVisuals();
@@ -979,23 +999,8 @@ export default class GameScene extends Phaser.Scene {
         
         const eq = this.equipment.equipped;
         
-        // Update Hat
-        if (this.hatLayer) {
-            if (eq.helmet) {
-                this.hatLayer.setText(eq.helmet.icon || '👑').setVisible(true);
-            } else {
-                this.hatLayer.setVisible(false);
-            }
-        }
-
-        // Update Armor
-        if (this.armorLayer) {
-            if (eq.armor) {
-                this.armorLayer.setText(eq.armor.icon || '🛡️').setVisible(true);
-            } else {
-                this.armorLayer.setVisible(false);
-            }
-        }
+        // Weapon Visuals based on class or item icon
+        // (Removing hat/armor text layers as per user request)
 
         // Update Weapon Visuals
         if (eq.weapon) {

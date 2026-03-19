@@ -20,6 +20,7 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// Forced rebuild for v11
 window.onerror = function(msg, url, line, col, error) {
   console.error('Global Error:', msg, 'at', url, ':', line, ':', col, error);
   return false;

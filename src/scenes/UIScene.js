@@ -2,6 +2,9 @@ import { SaveSystem } from '../utils/SaveSystem.js';
 import { EquipmentManager, RARITIES } from '../utils/EquipmentManager.js';
 import { SummonManager, SUMMON_CONFIG } from '../utils/SummonManager.js';
 
+const UI_ROW_START_Y = 720;
+const UI_ROW_GAP = 78;
+
 export default class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene' });
@@ -15,8 +18,10 @@ export default class UIScene extends Phaser.Scene {
         this.onSkill = data.onSkill;
         this.isAutoSkills = this.stats.autoSkills || false;
         this.globalCooldown = 0;
-        this.skillCooldowns = [0, 0, 0, 0];
-        this.skillMaxCooldowns = [5000, 5000, 5000, 5000];
+        this.skillCooldowns = [0, 0, 0, 0, 0, 0];
+        this.skillMaxCooldowns = [5000, 5000, 5000, 5000, 5000, 5000];
+        this.baseCosts = { damage: 3, hp: 3, hpRegen: 9, crit: 150 }; 
+        this.upgradeUI = {};
         this.skillBars = [];
         this.skillButtons = [];
         this.equipment = new EquipmentManager();
@@ -29,39 +34,28 @@ export default class UIScene extends Phaser.Scene {
         const classIndex = this.stats.classIndex ?? 0;
 
         // ── Top Bar (Currencies) ──────────────────────────────────────────────
-        // Dark translucent background
-        this.add.rectangle(w / 2, 40, w, 80, 0x000000, 0.75).setOrigin(0.5);
+        const bannerH = 100;
+        this.hudBanner = this.add.image(w / 2, 50, 'hud_banner').setOrigin(0.5).setDisplaySize(Math.min(w * 0.95, 1000), bannerH);
         
-        // Character Avatar & HP Bar
-        const avatarBg = this.add.circle(50, 40, 32, 0x333333).setStrokeStyle(2, 0x888888);
-        const classIcons = ['⚔️', '🔮', '🏹'];
-        this.add.text(50, 40, classIcons[classIndex] || '⚔️', { fontSize: '26px' }).setOrigin(0.5).setPadding(5);
-
-        // Player Health Bar
-        const hpBarX = 95;
-        const hpBarY = 40;
-        const hpBarW = 160;
-        this.add.rectangle(hpBarX, hpBarY, hpBarW, 16, 0x330000).setOrigin(0, 0.5);
-        this.hpBarFill = this.add.rectangle(hpBarX, hpBarY, hpBarW, 16, 0xff3333).setOrigin(0, 0.5);
-        this.hpText = this.add.text(hpBarX + hpBarW / 2, hpBarY, 'HP: 100/100', {
-            fontSize: '11px', fill: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-
+        // Currencies - Positioned to align with icons in the 'Banner oben2.png' asset
+        // Estimated offsets based on the 1000px banner width
+        const bx = w / 2;
+        const by = 50;
+        
         // Gold
-        this.goldText = this.add.text(w - 320, 40, `💰 ${Math.floor(this.stats.gold)}`, {
+        this.goldText = this.add.text(bx - 185, by + 23, `${Math.floor(this.stats.gold)}`, {
             fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(1, 0.5);
+        }).setOrigin(0, 0.5);
         
         // Gems
-        this.gemsText = this.add.text(w - 170, 40, `💎 ${this.stats.gems || 0}`, {
+        this.gemsText = this.add.text(bx + 20, by + 23, `${this.stats.gems || 0}`, {
             fontSize: '18px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(1, 0.5);
+        }).setOrigin(0, 0.5);
 
         // Emeralds
-        this.emeraldsText = this.add.text(w - 20, 40, `🟢 ${this.stats.emeralds || 0}`, {
+        this.emeraldsText = this.add.text(bx + 225, by + 23, `${this.stats.emeralds || 0}`, {
             fontSize: '18px', fill: '#00ff00', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(1, 0.5);
+        }).setOrigin(0, 0.5);
 
         // ── Stage Header ──────────────────────────────────────────────────────
         const headerY = 140;
@@ -89,64 +83,71 @@ export default class UIScene extends Phaser.Scene {
         this.bossProgressBar = this.add.rectangle(w / 2 - 150, headerY + 30, 0, 10, 0xaa0000).setOrigin(0, 0.5);
         this.add.text(w / 2 + 170, headerY + 30, '👹', { fontSize: '20px' }).setOrigin(0.5);
 
-        // ── Control Panel Background ──────────────────────────────────────────
-        const panelTop = 580;
-        const panelH = h - panelTop - 100;
-        this.add.rectangle(w / 2, panelTop + panelH / 2, w, panelH, 0x11111a, 0.98).setOrigin(0.5).setStrokeStyle(3, 0x333344);
+        // ── Unified UI Dashboard (Rahmen1) ───────────────────────────────────
+        const dashboardY = 820; 
+        this.add.image(w / 2, dashboardY, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 520);
+        
+        // Surgical 5th Row Extension: Seamlessly continue the panel pattern
+        const fakeRowY = UI_ROW_START_Y + 4 * UI_ROW_GAP; 
+        const fakeBg = this.add.image(w / 2, fakeRowY, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 520);
+        fakeBg.setCrop(0, 160, 720, 100); // Slightly more compressed crop for cleaner overlap
 
-        // ── Skill Row ────────────────────────────────────────────────────────
-        const skillY = panelTop + 50;
+        // ── Top Bar (Skills & Auto) ──────────────────────────────────────────
+        const skillY = dashboardY - 196; // Fine-tuned UP for perfect circle centering
+        const autoX = 72; // Shifted RIGHT for better centering
+        const autoY = skillY + 12;
+
+        this.autoToggleBtn = this.add.circle(autoX, autoY, 35, 0x442200, 0.01).setInteractive();
+        
+        // Procedural Auto Icon (Circular Arrow) - Positioned in the first slot
+        const autoIconGfx = this.add.graphics();
+        autoIconGfx.lineStyle(3, 0xffffff);
+        autoIconGfx.arc(autoX, autoY - 2, 12, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(280));
+        autoIconGfx.strokePath();
+        autoIconGfx.fillStyle(0xffffff);
+        autoIconGfx.fillTriangle(autoX + 12, autoY - 2, autoX + 6, autoY - 8, autoX + 18, autoY - 8);
+
+        // SURGICAL: No "AUTO" text as requested for "perfectly clean" look
+
+        // ── 6 Skills ─────────────────────────────────────────────────────────
         const skillData = [
             { name: 'Feuer', icon: '🔥', color: 0xcc3300 },
             { name: 'Frost', sprite: 'skill_sheet', frame: 0, color: 0x004488 },
             { name: 'Blitz', sprite: 'skill_sheet', frame: 1, color: 0xaaaa00 },
             { name: 'Heilen', sprite: 'skill_sheet', frame: 2, color: 0x006633 },
+            { name: 'Sterne', icon: '✨', color: 0x6600cc },
+            { name: 'Schild', icon: '🛡️', color: 0x333333 }
         ];
-        const sW = 80;
-        const totalSW = skillData.length * (sW + 10) - 10;
-        const startSX = w / 2 - totalSW / 2 + sW / 2;
+
+        const sW = 64;
+        const skillStartX = 125; // Mathematically centered for 6 gaps of 94px
+        const skillGap = 94;
 
         skillData.forEach((sk, i) => {
-            const bx = startSX + i * (sW + 10);
-            const bg = this.add.rectangle(bx, skillY, sW, sW, 0x111122).setOrigin(0.5).setStrokeStyle(2, 0x444466).setInteractive();
-            this.add.rectangle(bx, skillY, sW - 8, sW - 8, sk.color).setOrigin(0.5).setAlpha(0.6);
+            const bx = skillStartX + i * skillGap;
+            const by = autoY;
+            const bg = this.add.rectangle(bx, by, sW, sW, 0x111122, 0.01).setOrigin(0.5).setInteractive();
             
             if (sk.sprite) {
-                const sprite = this.add.sprite(bx, skillY, sk.sprite, sk.frame).setOrigin(0.5);
-                // Scale sprite to fit the button nicely
-                const scale = (sW - 20) / Math.max(sprite.width, sprite.height);
+                const sprite = this.add.sprite(bx, by, sk.sprite, sk.frame).setOrigin(0.5);
+                const scale = (sW - 22) / Math.max(sprite.width, sprite.height);
                 sprite.setScale(scale);
             } else {
-                this.add.text(bx, skillY - 5, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
+                this.add.text(bx, by, sk.icon, { fontSize: '28px' }).setOrigin(0.5);
             }
             
             // CD Overlay
-            const cdOverlay = this.add.rectangle(bx, skillY + sW / 2, sW - 4, 0, 0x000000, 0.8).setOrigin(0.5, 1);
-            const cdText = this.add.text(bx, skillY + 10, '', { fontSize: '22px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setAlpha(0);
+            const cdOverlay = this.add.rectangle(bx, by + sW / 2, sW - 4, 0, 0x000000, 0.8).setOrigin(0.5, 1);
+            const cdText = this.add.text(bx, by, '', { fontSize: '22px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setAlpha(0);
             
             this.skillBars.push({ overlay: cdOverlay, text: cdText });
             this.skillButtons.push(bg);
             bg.on('pointerdown', () => this.triggerSkill(i));
         });
 
-        // ── Auto Button ───────────────────────────────────────────────────────
-        const autoY = panelTop + 50; 
-        this.autoToggleBtn = this.add.circle(80, autoY, 35, 0x442200).setStrokeStyle(3, 0xcc8800).setInteractive();
-        
-        // Procedural Auto Icon (Circular Arrow)
-        const autoIconGfx = this.add.graphics();
-        autoIconGfx.lineStyle(3, 0xffffff);
-        autoIconGfx.arc(80, autoY - 2, 12, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(280));
-        autoIconGfx.strokePath();
-        autoIconGfx.fillStyle(0xffffff);
-        autoIconGfx.fillTriangle(92, autoY - 2, 86, autoY - 8, 98, autoY - 8);
-        
-        this.add.text(80, autoY + 18, 'AUTO', { fontSize: '10px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
-
         // Apply initial visual state if AUTO is active
         if (this.isAutoSkills) {
-            this.autoToggleBtn.setStrokeStyle(5, 0x00ffff);
-            this.autoToggleBtn.setFillStyle(0x004444);
+            this.updateAutoButton();
         }
 
         this.autoToggleBtn.on('pointerdown', () => {
@@ -164,21 +165,17 @@ export default class UIScene extends Phaser.Scene {
             }
         });
 
-        // ── Upgrade List ──────────────────────────────────────────────────────
-        const listTop = panelTop + 115; // Below skill row
-        const listH = 400;
-        this.add.rectangle(w / 2, listTop + listH / 2, w - 20, listH, 0x1a1a2a, 0.95).setOrigin(0.5).setStrokeStyle(2, 0x333344);
-
+        // ── Upgrade Rows (Expanded to 5) ────────────────────
         this.upgrades = [
-            { id: 'damage', name: 'Damage', icon: '⚔️', baseCost: 3, increment: 2, scale: 1.15 },
-            { id: 'hp', name: 'HP', icon: '❤️', baseCost: 3, increment: 20, scale: 1.15 },
-            { id: 'hpRegen', name: 'HP Regen', icon: '💪', baseCost: 9, increment: 1, scale: 1.2 },
-            { id: 'crit', name: 'Crit Rate', icon: '⚡', baseCost: 150, increment: 0.1, scale: 1.3, suffix: '%' }
+            { id: 'damage', name: 'Damage', baseCost: 3, increment: 2, scale: 1.15, icon: 'icon_damage' },
+            { id: 'hp', name: 'HP', baseCost: 3, increment: 20, scale: 1.15, icon: 'icon_hp' },
+            { id: 'hpRegen', name: 'HP Regen', baseCost: 9, increment: 1, scale: 1.2, icon: 'icon_regen' },
+            { id: 'crit', name: 'Crit Rate', baseCost: 150, increment: 0.1, scale: 1.3, suffix: '%', icon: 'icon_crit_rate' },
+            { id: 'critDamage', name: 'Crit Damage', baseCost: 300, increment: 0.1, scale: 1.4, suffix: 'x', icon: 'icon_crit_dmg' }
         ];
-        this.upgradeUI = {};
 
         this.upgrades.forEach((upg, i) => {
-            this.createUpgradeRow(upg, w / 2, listTop + 50 + i * 95);
+            this.createUpgradeRow(upg, w / 2, UI_ROW_START_Y + i * UI_ROW_GAP);
         });
 
         // ── Bottom Nav ────────────────────────────────────────────────────────
@@ -196,8 +193,8 @@ export default class UIScene extends Phaser.Scene {
             const ix = (w / (navItems.length + 1)) * (i + 1);
             const btn = this.add.container(ix, navY);
             
-            // Procedural nav bg
-            const nbg = this.add.rectangle(0, 0, 80, 100, 0x1a1a2e, 0.5).setStrokeStyle(1, 0x444466).setInteractive();
+            // Transparent nav boxes for premium floating look
+            const nbg = this.add.rectangle(0, 0, 80, 100, 0x000000, 0.01).setInteractive();
             const icon = this.add.text(0, -10, item.icon, { fontSize: '28px' }).setOrigin(0.5);
             const label = this.add.text(0, 25, item.name, { fontSize: '10px', fill: '#ffffff' }).setOrigin(0.5);
             
@@ -227,41 +224,57 @@ export default class UIScene extends Phaser.Scene {
     }
 
     createUpgradeRow(upg, x, y) {
-        const rowW = 680;
-        const rowH = 85;
-        
-        // Row Container
-        const container = this.add.rectangle(x, y, rowW, rowH, 0x2a2a3a).setOrigin(0.5).setStrokeStyle(1, 0x444455);
-        
-        // Icon Box
-        this.add.rectangle(x - rowW/2 + 45, y, 75, 75, 0x111111).setOrigin(0.5).setStrokeStyle(1, 0xcc8800);
-        this.add.text(x - rowW/2 + 45, y, upg.icon, { fontSize: '24px' }).setOrigin(0.5).setPadding(10);
-        
-        // Info
+        // SURGICAL: Position icons in the oval ornaments
         const level = this.stats[upg.id + 'Level'] || 1;
-        const title = this.add.text(x - rowW/2 + 95, y - 18, `${upg.name} Lv.${level}`, {
-            fontSize: '18px', fill: '#FFD700', fontStyle: 'bold'
-        });
         
+        // Category Icon in the Left Oval
+        if (upg.icon) {
+            const icon = this.add.image(x - 256, y, upg.icon).setOrigin(0.5);
+            const iconScale = 54 / Math.max(icon.width, icon.height);
+            icon.setScale(iconScale);
+        }
+
+        // Title & Level - Centered in the middle zone for a clean look
+        const labelX = x - 70;
+        const title = this.add.text(labelX, y - 10, `${upg.name} Lv.${level}`, {
+            fontSize: '18px', fill: '#E0E0FF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+        
+        // Stats
         let currentVal = upg.id === 'damage' ? this.stats.attack : (upg.id === 'hp' ? this.stats.maxHp : (this.stats[upg.id] || 0));
+        if (upg.id === 'critDamage') {
+            const upgLevel = this.stats.critDamageLevel || 1;
+            currentVal = 1.5 + (upgLevel - 1) * 0.1;
+        } else if (upg.id === 'crit') {
+            const upgLevel = this.stats.critLevel || 1;
+            currentVal = 5.0 + (upgLevel - 1) * 1.0; // Displayed as percentage
+        }
+        
         let nextVal = currentVal + upg.increment;
         const suffix = upg.suffix || '';
-        const valText = this.add.text(x - rowW/2 + 95, y + 12, `${currentVal}${suffix} -> ${nextVal}${suffix}`, {
-            fontSize: '16px', fill: '#ffffff'
-        });
+        const valText = this.add.text(labelX, y + 15, `${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`, {
+            fontSize: '15px', fill: '#B0B0CC', fontStyle: 'bold' // Slightly clearer fonts
+        }).setOrigin(0.5);
 
         // Buy Button
-        const btnX = x + rowW/2 - 85;
-        const buyBtn = this.add.rectangle(btnX, y, 150, 60, 0xcc8800).setInteractive().setOrigin(0.5);
-        const costText = this.add.text(btnX, y, `💰 10`, {
-            fontSize: '18px', fill: '#000', fontStyle: 'bold'
+        const costX = x + 285;
+        const buyBtn = this.add.rectangle(costX - 40, y, 140, 60, 0x000000, 0.01).setInteractive().setOrigin(0.5);
+        
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, level - 1));
+        const costText = this.add.text(costX, y, `${cost}`, {
+            fontSize: '22px', fill: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
         }).setOrigin(0.5);
 
         this.upgradeUI[upg.id] = { title, valText, costText, buyBtn };
 
         buyBtn.on('pointerdown', () => this.buyUpgrade(upg.id));
-        buyBtn.on('pointerover', () => buyBtn.setFillStyle(0xeeaa00));
-        buyBtn.on('pointerout', () => buyBtn.setFillStyle(0xcc8800));
+        buyBtn.on('pointerover', () => {
+             // Subtle feedback without covering asset
+             costText.setScale(1.1);
+        });
+        buyBtn.on('pointerout', () => {
+             costText.setScale(1.0);
+        });
     }
 
     buyUpgrade(id) {
@@ -319,11 +332,11 @@ export default class UIScene extends Phaser.Scene {
     updateAutoButton() {
         if (!this.autoToggleBtn) return;
         if (this.isAutoSkills) {
-            this.autoToggleBtn.setStrokeStyle(5, 0x00ffff);
-            this.autoToggleBtn.setFillStyle(0x004444);
+            this.autoToggleBtn.setStrokeStyle(4, 0x00ffff, 1);
+            this.autoToggleBtn.setFillStyle(0x00ffff, 0.3);
         } else {
-            this.autoToggleBtn.setStrokeStyle(3, 0xcc8800);
-            this.autoToggleBtn.setFillStyle(0x442200);
+            this.autoToggleBtn.setStrokeStyle(2, 0xcc8800, 0.5);
+            this.autoToggleBtn.setFillStyle(0x442200, 0.01);
         }
     }
 
@@ -442,17 +455,25 @@ export default class UIScene extends Phaser.Scene {
                 ui.title.setText(`${upg.name} Lv.${upgLevel}`);
                 
                 let currentVal = upg.id === 'damage' ? Number(stats.attack) : (upg.id === 'hp' ? Number(stats.maxHp) : (Number(stats[upg.id]) || 0));
+                
+                // Special mapping for critical stats in UIScene
+                if (upg.id === 'critDamage') {
+                    const upgLevel = Number(stats.critDamageLevel) || 1;
+                    currentVal = 1.5 + (upgLevel - 1) * 0.1;
+                } else if (upg.id === 'crit') {
+                    const upgLevel = Number(stats.critLevel) || 1;
+                    currentVal = 5.0 + (upgLevel - 1) * 1.0; 
+                }
+
                 let nextVal = currentVal + upg.increment;
                 if (ui.valText && ui.valText.active) ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
-                if (ui.costText && ui.costText.active) ui.costText.setText(`💰 ${cost}`);
+                if (ui.costText && ui.costText.active) ui.costText.setText(`${cost}`);
                 
                 if (ui.buyBtn && ui.buyBtn.active) {
                     if (Number(stats.gold) < cost) {
-                        ui.buyBtn.setAlpha(0.5);
-                        ui.costText.setFill('#ff0000');
+                        ui.costText.setFill('#ff4444'); // Vibrant red for unaffordable
                     } else {
-                        ui.buyBtn.setAlpha(1);
-                        ui.costText.setFill('#000');
+                        ui.costText.setFill('#FFD700'); // Premium gold for affordable
                     }
                 }
             });
@@ -482,7 +503,7 @@ export default class UIScene extends Phaser.Scene {
             const listAlive = enemyList.some(e => e && e.active && e.getData && e.getData('alive') && (e.x - px) > -50 && (e.x - px) < 550);
             hasEnemy = !!(bossAlive || listAlive);
 
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 6; i++) {
                 // Update Cooldown Timers
                 if (this.skillCooldowns[i] > 0) {
                     this.skillCooldowns[i] = Math.max(0, this.skillCooldowns[i] - delta);
@@ -493,7 +514,7 @@ export default class UIScene extends Phaser.Scene {
 
                 const cd = this.skillCooldowns[i];
                 if (cd > 0) {
-                    if (bar.overlay && bar.overlay.active) bar.overlay.height = 76 * (cd / (this.skillMaxCooldowns[i] || 5000));
+                    if (bar.overlay && bar.overlay.active) bar.overlay.height = 60 * (cd / (this.skillMaxCooldowns[i] || 5000));
                     if (bar.text && bar.text.active) bar.text.setText((cd / 1000).toFixed(1)).setAlpha(1);
                 } else {
                     if (bar.overlay && bar.overlay.active) bar.overlay.height = 0;
@@ -501,7 +522,7 @@ export default class UIScene extends Phaser.Scene {
                     
                     // Trigger AUTO
                     if (this.isAutoSkills && hasEnemy && this.globalCooldown <= 0) {
-                        if (i < 3) {
+                        if (i !== 3) {
                             this.triggerSkill(i);
                         } else if (i === 3 && this.stats && this.stats.hp < (this.stats.maxHp || 100) * 0.5) {
                             this.triggerSkill(i);
@@ -574,8 +595,8 @@ export default class UIScene extends Phaser.Scene {
         });
 
         const enhanceAllBtn = this.add.rectangle(180, 320, 250, 60, 0x27ae60).setInteractive();
-        this.add.text(180, 320, 'Enhance All', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        panel.add(enhanceAllBtn);
+        const enhanceAllTxt = this.add.text(180, 320, 'Enhance All', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        panel.add([enhanceAllBtn, enhanceAllTxt]);
         enhanceAllBtn.on('pointerdown', () => {
             if (this.equipment.enhanceAll()) {
                 this.refreshEquipmentMenu(panel);
