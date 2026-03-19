@@ -19,19 +19,19 @@ export default class GameScene extends Phaser.Scene {
     init(data) {
         if (!data) data = {};
         this.currentStage = Number(data.stage) || 1;
-        const s = data.playerStats || {};
         
-        this.playerStats = {
+        // Use provided baseStats or load from SaveSystem
+        const s = data.baseStats || SaveSystem.load();
+        
+        this.baseStats = {
             hp: Number(s.hp) || 100,
             maxHp: Number(s.maxHp) || 100,
             mana: Number(s.mana) || 100,
             maxMana: Number(s.maxMana) || 100,
-            xp: Number(s.xp) || 0,
-            level: Number(s.level) || 1,
             attack: Number(s.attack) || 15,
             defense: Number(s.defense) || 3,
             speed: Number(s.speed) || 200,
-            gold: Number(s.gold) || 0,
+            gold: Math.floor(Number(s.gold) || 0),
             autoAttackSpeed: Number(s.autoAttackSpeed) || 800,
             className: s.className || 'Krieger',
             classIndex: Number(s.classIndex) ?? 0,
@@ -46,21 +46,11 @@ export default class GameScene extends Phaser.Scene {
             maxStage: Number(s.maxStage) || Math.max(Number(s.stage) || 1, this.currentStage)
         };
 
-        // Final sanity check for finite numbers
-        Object.keys(this.playerStats).forEach(k => {
-            if (typeof this.playerStats[k] === 'number' && !isFinite(this.playerStats[k])) {
-                this.playerStats[k] = 0;
-            }
-        });
-
-        this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
-        this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
-
-        // Store base stats for equipment calculation
-        this.baseStats = JSON.parse(JSON.stringify(this.playerStats));
+        // Derived stats for active gameplay
+        this.playerStats = JSON.parse(JSON.stringify(this.baseStats));
         
         this.equipment = new EquipmentManager();
-        this.applyEquipmentStats(true);
+        this.applyEquipmentStats(true); // This populates playerStats from baseStats
     }
 
     create() {
@@ -337,7 +327,6 @@ export default class GameScene extends Phaser.Scene {
         container.setData('hp', hp);
         container.setData('maxHp', hp);
         container.setData('alive', true);
-        container.setData('xpValue', Math.floor((isBig ? 28 : 14) * this.enemyHpScale));
         container.setData('goldValue', Phaser.Math.Between(isBig ? 6 : 2, isBig ? 18 : 8));
         container.setData('attack', Math.floor(baseAtk * (isBig ? 1.3 : 1) * this.enemyAtkScale));
         container.setData('attackSpeed', 1200 + Phaser.Math.Between(-200, 200));
@@ -396,7 +385,6 @@ export default class GameScene extends Phaser.Scene {
         container.setData('hp', hp);
         container.setData('maxHp', hp);
         container.setData('alive', true);
-        container.setData('xpValue', Math.floor(150 * this.enemyHpScale));
         container.setData('goldValue', Phaser.Math.Between(40, 80));
         container.setData('attack', Math.floor(22 * this.enemyAtkScale));
         container.setData('attackSpeed', 1800);
@@ -638,45 +626,17 @@ export default class GameScene extends Phaser.Scene {
 
     killEnemy(container) {
         container.setData('alive', false);
-        const xp = container.getData('xpValue');
         const gold = container.getData('goldValue');
         const isBoss = container.getData('isBoss');
-        this.playerStats.xp += xp;
         this.playerStats.gold += gold;
-
+        
         const ex = container.x;
         const ey = container.y;
 
         this.showDamageNumber(ex, ey - 50, `+${gold}G`, '#FFD700', 18);
-        this.showDamageNumber(ex + 20, ey - 72, `+${xp}XP`, '#00ff88', 16);
 
         // Death explosion
         this.spawnExplosion(ex, ey, 0xff6600);
-
-        // Gold orb
-        const orb = this.add.circle(ex, ey - 20, 9, 0xFFD700);
-        this.physics.add.existing(orb);
-        orb.body.setVelocity(Phaser.Math.Between(-70, 70), -200);
-        this.physics.add.collider(orb, this.platforms);
-        this.time.delayedCall(350, () => {
-            this.tweens.add({
-                targets: orb, x: this.playerPhysics.x, y: this.playerPhysics.y - 20,
-                duration: 350, ease: 'Cubic.In', onComplete: () => orb.destroy()
-            });
-        });
-
-        // Level up heal
-        const xpNeeded = this.playerStats.level * 100;
-        if (this.playerStats.xp >= xpNeeded) {
-            this.playerStats.xp -= xpNeeded;
-            this.playerStats.level++;
-            this.playerStats.maxHp += 15;
-            this.playerStats.hp = this.playerStats.maxHp; // Fully heal on level up
-            this.playerStats.attack += 4;
-            this.playerStats.autoAttackSpeed = Math.max(250, this.playerStats.autoAttackSpeed - 25);
-            this.showDamageNumber(this.playerPhysics.x, this.playerPhysics.y - 100, '⬆ LEVEL UP!', '#ffaa00', 24);
-            this.cameras.main.flash(350, 255, 160, 0);
-        }
 
         // Cleanup physRect
         const physRect = container.getData('physRect');
@@ -719,14 +679,13 @@ export default class GameScene extends Phaser.Scene {
         this.showDamageNumber(this.playerPhysics.x, this.playerPhysics.y - 80, 'STAGE GESCHAFFT!', '#FFD700', 32);
         
         // Stage Reward: 1000 Gems
-        this.playerStats.gems += 1000;
-        this.playerStats.stage = this.currentStage + 1;
-        this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, this.playerStats.stage);
+        this.baseStats.gems += 1000;
+        this.baseStats.stage = this.currentStage + 1;
+        this.baseStats.maxStage = Math.max(this.baseStats.maxStage || 1, this.baseStats.stage);
+        this.baseStats.gold = Math.floor(this.playerStats.gold);
         
-        // Full Heal for starting the next stage
-        this.playerStats.hp = this.playerStats.maxHp;
-        
-        SaveSystem.save(this.playerStats);
+        // Base stats are saved (Clean)
+        SaveSystem.save(this.baseStats);
 
         this.time.delayedCall(300, () => {
             this.showDamageNumber(this.playerPhysics.x, this.playerPhysics.y - 130, '+1000 💎', '#00ffff', 28);
@@ -738,8 +697,8 @@ export default class GameScene extends Phaser.Scene {
             this.cameras.main.fadeOut(400, 0, 0, 0);
             this.cameras.main.once('camerafadeoutcomplete', () => {
                 this.scene.start('GameScene', { 
-                    stage: this.playerStats.stage, 
-                    playerStats: this.playerStats 
+                    stage: this.baseStats.stage, 
+                    baseStats: this.baseStats 
                 });
             });
         });
@@ -747,20 +706,18 @@ export default class GameScene extends Phaser.Scene {
 
     jumpToStage(s) {
         if (this.stageComplete) return;
-        this.playerStats.stage = s;
-        this.playerStats.maxStage = Math.max(this.playerStats.maxStage || 1, s);
+        this.baseStats.stage = s;
+        this.baseStats.maxStage = Math.max(this.baseStats.maxStage || 1, s);
+        this.baseStats.gold = Math.floor(this.playerStats.gold);
         
-        // Full Heal for starting the jumped stage
-        this.playerStats.hp = this.playerStats.maxHp;
-        
-        SaveSystem.save(this.playerStats);
+        SaveSystem.save(this.baseStats);
 
         this.scene.stop('UIScene');
         this.cameras.main.fadeOut(400, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.scene.start('GameScene', { 
                 stage: s, 
-                playerStats: this.playerStats 
+                baseStats: this.baseStats 
             });
         });
     }
@@ -978,21 +935,30 @@ export default class GameScene extends Phaser.Scene {
     applyEquipmentStats(isInitial = false) {
         if (!this.equipment || !this.baseStats) return;
         
-        const bonuses = this.equipment.getBonusStats();
+        const bonuses = this.equipment.getAllBonuses();
+        const flat = bonuses.flat;
+        const mult = bonuses.mult;
         
-        // Calculate new playerStats from baseStats + bonuses
-        this.playerStats.attack = this.baseStats.attack + (bonuses.attack || 0);
-        this.playerStats.maxHp = this.baseStats.maxHp + (bonuses.hp || 0);
-        this.playerStats.maxMana = this.baseStats.maxMana + (bonuses.mana || 0);
-        this.playerStats.defense = this.baseStats.defense + (bonuses.defense || 0);
-        this.playerStats.hpRegen = (this.baseStats.hpRegen || 0) + (bonuses.hpRegen || 0);
-        this.playerStats.crit = (this.baseStats.crit || 0.05) + (bonuses.crit || 0);
+        // Calculate new playerStats: (Base + Flat) * Multiplier
+        this.playerStats.attack = (this.baseStats.attack + (flat.attack || 0)) * (mult.attack || 1);
+        this.playerStats.maxHp = (this.baseStats.maxHp + (flat.hp || 0)) * (mult.hp || 1);
+        this.playerStats.maxMana = (this.baseStats.maxMana + (flat.mana || 0)) * (mult.mana || 1);
+        this.playerStats.defense = (this.baseStats.defense + (flat.defense || 0)) * (mult.defense || 1);
         
-        // Clamp current hp/mana to new maxes
-        this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
-        this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
+        // Crit and HP Regen are often additive in these games
+        this.playerStats.hpRegen = (this.baseStats.hpRegen || 0) + (flat.hpRegen || 0) + (mult.hpRegen || 0);
+        this.playerStats.crit = (this.baseStats.crit || 0.05) + (flat.crit || 0) + (mult.crit || 0);
         
-        // Levels should be copied too for UI
+        // Clamp current hp/mana
+        if (isInitial) {
+            this.playerStats.hp = this.playerStats.maxHp;
+            this.playerStats.mana = this.playerStats.maxMana;
+        } else {
+            this.playerStats.hp = Math.min(this.playerStats.hp, this.playerStats.maxHp);
+            this.playerStats.mana = Math.min(this.playerStats.mana, this.playerStats.maxMana);
+        }
+        
+        // Sync meta-stats
         this.playerStats.damageLevel = this.baseStats.damageLevel;
         this.playerStats.hpLevel = this.baseStats.hpLevel;
         this.playerStats.hpRegenLevel = this.baseStats.hpRegenLevel;

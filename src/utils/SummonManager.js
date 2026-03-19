@@ -3,8 +3,8 @@ import { ITEM_DATABASE } from './EquipmentManager.js';
 export const SUMMON_CONFIG = {
     COST_X10: 1000,
     COST_X30: 3000,
-    XP_PER_PULL: 10,
-    XP_TO_LEVEL: 500, // XP needed per level (e.g., Level 1 -> 2 needs 500 XP)
+    PULL_PROGRESS: 10,
+    PROGRESS_TO_LEVEL: 500, // Progress needed per level (e.g., Level 1 -> 2 needs 500 Progress)
 };
 
 export const BANNER_WEIGHTS = {
@@ -19,23 +19,23 @@ export const BANNER_WEIGHTS = {
 export class SummonManager {
     constructor() {
         this.banners = {
-            weapon: { level: 1, xp: 0 },
-            shield: { level: 1, xp: 0 },
-            necklace: { level: 1, xp: 0 },
-            skill: { level: 1, xp: 0 }
+            weapon: { level: 1, progress: 0 },
+            shield: { level: 1, progress: 0 },
+            necklace: { level: 1, progress: 0 },
+            skill: { level: 1, progress: 0 }
         };
         this.load();
     }
 
     load() {
-        const saved = localStorage.getItem('lunar_slayer_summon');
+        const saved = localStorage.getItem('lunar_slayer_summon_v2');
         if (saved) {
             this.banners = JSON.parse(saved);
         }
     }
 
     save() {
-        localStorage.setItem('lunar_slayer_summon', JSON.stringify(this.banners));
+        localStorage.setItem('lunar_slayer_summon_v2', JSON.stringify(this.banners));
     }
 
     getInterpolatedWeights(level) {
@@ -78,10 +78,10 @@ export class SummonManager {
             results.push(this.rollItem(category, weights));
         }
 
-        // Increase XP
-        banner.xp += amount * SUMMON_CONFIG.XP_PER_PULL;
-        while (banner.xp >= SUMMON_CONFIG.XP_TO_LEVEL && banner.level < 10) {
-            banner.xp -= SUMMON_CONFIG.XP_TO_LEVEL;
+        // Increase progress
+        banner.progress += amount * SUMMON_CONFIG.PULL_PROGRESS;
+        while (banner.progress >= SUMMON_CONFIG.PROGRESS_TO_LEVEL && banner.level < 10) {
+            banner.progress -= SUMMON_CONFIG.PROGRESS_TO_LEVEL;
             banner.level++;
         }
 

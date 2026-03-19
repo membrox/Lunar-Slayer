@@ -44,8 +44,16 @@ export default class BootScene extends Phaser.Scene {
         // Load Mage Sprites as raw images with leading slashes for Vite
         this.load.image('mage_raw_1', '/mage_sheet_1.png');
         this.load.image('mage_raw_2', '/mage_sheet_2.png');
-        this.load.image('game_bg', '/background1.png');
-        this.load.image('testzauber_raw', '/testzauber.png');
+        this.load.image('game_bg', '/Background1.png');
+        this.load.image('testzauber_raw', '/testzauber1.png');
+
+        // Load Shield Assets
+        this.load.image('shield_grau_raw', '/schilder grau.png');
+        this.load.image('shield_gruen_raw', '/Schilder gruen.png');
+        this.load.image('shield_blau_raw', '/Schilder Blau.png');
+        this.load.image('shield_epic_raw', '/schilder epic.png');
+        this.load.image('shield_myth_raw', '/schilder myth.png');
+        this.load.image('shield_legendary_raw', '/Schilder Legendary.png');
     }
 
     create() {
@@ -55,6 +63,14 @@ export default class BootScene extends Phaser.Scene {
         
         // Process Skill Spritesheet (3 frames horizontal)
         this.makeSkillSheet('testzauber_raw', 'skill_sheet');
+
+        // Process Shield Spritesheets (5 frames each, except Myth which has 1 or is handled similarly)
+        this.makeShieldSheet('shield_grau_raw', 'shield_grau', 5);
+        this.makeShieldSheet('shield_gruen_raw', 'shield_gruen', 5);
+        this.makeShieldSheet('shield_blau_raw', 'shield_blau', 5);
+        this.makeShieldSheet('shield_epic_raw', 'shield_epic', 5);
+        this.makeShieldSheet('shield_myth_raw', 'shield_myth', 1);
+        this.makeShieldSheet('shield_legendary_raw', 'shield_legendary', 5);
 
         this.cameras.main.fadeOut(300, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -86,31 +102,34 @@ export default class BootScene extends Phaser.Scene {
         this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
     }
 
+    makeShieldSheet(sourceKey, targetKey, frames) {
+        const source = this.textures.get(sourceKey).getSourceImage();
+        const frameW = Math.floor(source.width / frames);
+        const frameH = source.height;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(source, 0, 0);
+
+        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
+    }
+
     makeSkillSheet(sourceKey, targetKey) {
         const source = this.textures.get(sourceKey).getSourceImage();
         
-        // testzauber.png has Ice, Lightning, Heart in one row (3 frames)
+        // testzauber1.png has Ice, Lightning, Heart in one row (3 frames)
+        // Since the user cleaned the asset, we can use the full frame dimensions.
         const frameW = Math.floor(source.width / 3);
         const frameH = source.height;
 
-        // 80% width is safe for heart edges. 
-        // 60% height is the intended "sweet spot" to hide dots without cutting the heart too much.
-        const cropW = Math.floor(frameW * 0.80);
-        const cropH = Math.floor(frameH * 0.60);
-
         const canvas = document.createElement('canvas');
-        canvas.width = cropW * 3;
-        canvas.height = cropH;
+        canvas.width = source.width;
+        canvas.height = source.height;
         const ctx = canvas.getContext('2d');
+        ctx.drawImage(source, 0, 0);
 
-        for (let i = 0; i < 3; i++) {
-            const srcX = i * frameW + (frameW - cropW) / 2;
-            const srcY = (frameH - cropH) / 2;
-            const destX = i * cropW;
-            const destY = 0;
-            ctx.drawImage(source, srcX, srcY, cropW, cropH, destX, destY, cropW, cropH);
-        }
-
-        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: cropW, frameHeight: cropH });
+        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
     }
 }

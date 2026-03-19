@@ -62,7 +62,7 @@ export default class MenuScene extends Phaser.Scene {
                 color: 0xcc4400,
                 stats: 'HP: ★★★  ATK: ★★  SPD: ★',
                 desc: 'Hohe HP, starker Nahkampf',
-                bonuses: { hp: 40, attack: 5, defense: 2, speed: -20 }
+                bonuses: { hp: 17, attack: 5, defense: 2, speed: -20 }
             },
             {
                 name: 'Magier',
@@ -154,6 +154,20 @@ export default class MenuScene extends Phaser.Scene {
         this.add.text(w - 10, h - 10, 'v0.2', {
             fontSize: '11px', fill: '#444444', fontFamily: 'Arial'
         }).setOrigin(1);
+
+        // ── Reset Button ────────────────────────────────────────────────────────
+        const resetBtn = this.add.text(10, h - 10, '⚠️ RESET ALL PROGRESS', {
+            fontSize: '12px', fill: '#662222', fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0, 1).setInteractive();
+
+        resetBtn.on('pointerover', () => resetBtn.setFill('#ff4444'));
+        resetBtn.on('pointerout', () => resetBtn.setFill('#662222'));
+        resetBtn.on('pointerdown', () => {
+            if (confirm('Bist du sicher? Alle Fortschritte, Items und Summons werden gelöscht!')) {
+                SaveSystem.clearAll();
+                window.location.reload();
+            }
+        });
     }
 
     drawBackground(w, h) {
@@ -247,7 +261,6 @@ export default class MenuScene extends Phaser.Scene {
         // Initial defaults
         let baseStats = {
             hp: 100, maxHp: 100,
-            xp: 0, level: 1,
             attack: 15, defense: 3,
             speed: 200, gold: 0,
             autoAttackSpeed: 800,
@@ -278,7 +291,7 @@ export default class MenuScene extends Phaser.Scene {
 
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.on('camerafadeoutcomplete', () => {
-            this.scene.start('GameScene', { stage: baseStats.stage || 1, playerStats: baseStats });
+            this.scene.start('GameScene', { stage: baseStats.stage || 1, baseStats: baseStats });
         });
     }
 

@@ -1,11 +1,10 @@
 export class SaveSystem {
-    static SAVE_KEY = 'lunar_slayer_save';
+    static SAVE_KEY = 'lunar_slayer_save_v5';
 
     static getDefaultStats() {
         return {
             hp: 100, maxHp: 100,
             mana: 100, maxMana: 100,
-            xp: 0, level: 1,
             attack: 15, defense: 3,
             speed: 200, gold: 0,
             autoAttackSpeed: 800,
@@ -47,5 +46,16 @@ export class SaveSystem {
 
     static clear() {
         localStorage.removeItem(this.SAVE_KEY);
+    }
+
+    static clearAll() {
+        // Clear all versioned keys to ensure a complete reset
+        const keys = [
+            'lunar_slayer_save_v1', 'lunar_slayer_save_v2', 'lunar_slayer_save_v3', 'lunar_slayer_save_v4', 'lunar_slayer_save_v5',
+            'lunar_slayer_equipment_v1', 'lunar_slayer_equipment_v2', 'lunar_slayer_equipment_v3',
+            'lunar_slayer_summon_v1', 'lunar_slayer_summon_v2'
+        ];
+        keys.forEach(k => localStorage.removeItem(k));
+        console.log('All game progress cleared');
     }
 }

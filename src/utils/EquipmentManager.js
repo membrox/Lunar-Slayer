@@ -48,15 +48,19 @@ export class EquipmentManager {
             }
         });
 
-        // Add starter items if completely new
-        if (Object.values(this.inventory).every(v => v.count === 0) && Object.values(this.equipped).every(v => v === null)) {
+        // Add starter items if completely new (no items owned)
+        const totalItemsOwned = Object.values(this.inventory).reduce((sum, item) => sum + item.count, 0);
+        if (totalItemsOwned === 0 && Object.values(this.equipped).every(v => v === null)) {
+            console.log('Fresh start: Adding and equipping starter items');
             this.addItemById('wpn_01');
             this.addItemById('arm_01');
+            this.equip('wpn_01', 'weapon');
+            this.equip('arm_01', 'armor');
         }
     }
 
     load() {
-        const saved = localStorage.getItem('lunar_slayer_equipment_v2');
+        const saved = localStorage.getItem('lunar_slayer_equipment_v3');
         if (saved) {
             const data = JSON.parse(saved);
             this.inventory = data.inventory || {};
@@ -65,7 +69,7 @@ export class EquipmentManager {
     }
 
     save() {
-        localStorage.setItem('lunar_slayer_equipment_v2', JSON.stringify({
+        localStorage.setItem('lunar_slayer_equipment_v3', JSON.stringify({
             inventory: this.inventory,
             equipped: this.equipped
         }));
@@ -145,53 +149,54 @@ export class EquipmentManager {
         return true;
     }
 
-    // Possession Effect: Total base stats * multiplier * levels
-    // Multiplier is tiny: 0.1% per level per item
-    getPossessionStats() {
-        const total = { attack: 0, hp: 0, mana: 0, defense: 0, crit: 0, hpRegen: 0 };
+    // Possession Effect: Global Multipliers
+    // Formula: 1.0 + Sum(baseStat * 0.001 * level)
+    getPossessionMultipliers() {
+        const multipliers = { attack: 1.0, hp: 1.0, mana: 1.0, defense: 1.0, crit: 0, hpRegen: 0 };
         
         Object.values(this.inventory).forEach(invItem => {
+            if (invItem.count <= 0) return;
             const dbItem = this.getItemById(invItem.id);
             if (dbItem && dbItem.baseStats) {
-                // Possession effect = baseStat * 0.1 * level
+                // Possession effect = baseStat * 0.001 * level as flat multiplier addition
+                // e.g. a weapon with 10 attack at lv 10 adds 10 * 0.001 * 10 = 0.1 to the multiplier (1.1x)
                 Object.keys(dbItem.baseStats).forEach(stat => {
-                    const bonus = dbItem.baseStats[stat] * 0.01 * invItem.level;
-                    total[stat] += bonus;
+                    const bonus = dbItem.baseStats[stat] * 0.001 * invItem.level;
+                    if (stat === 'crit' || stat === 'hpRegen') {
+                        multipliers[stat] += bonus; // These stay additive for now
+                    } else {
+                        multipliers[stat] += bonus;
+                    }
                 });
             }
         });
-        return total;
+        return multipliers;
     }
 
-    getEquippedStats() {
-        const total = { attack: 0, hp: 0, mana: 0, defense: 0, crit: 0, hpRegen: 0 };
+    // Equipped Effect: Flat Bonuses
+    getEquippedFlatBonuses() {
+        const flat = { attack: 0, hp: 0, mana: 0, defense: 0, crit: 0, hpRegen: 0 };
         
         Object.values(this.equipped).forEach(eq => {
             if (eq) {
                 const dbItem = this.getItemById(eq.id);
                 if (dbItem && dbItem.baseStats) {
-                    // Equipped Effect = baseStat * multiplier * level
-                    // Multiplier for equipped is much higher: 1.0 + (level-1)*0.5
-                    const multiplier = 1 + (eq.level - 1) * 0.2;
+                    // Equipped Effect = baseStat * ScaleFactor(level)
+                    const levelScale = 1 + (eq.level - 1) * 0.2;
                     Object.keys(dbItem.baseStats).forEach(stat => {
-                        total[stat] += dbItem.baseStats[stat] * multiplier;
+                        flat[stat] += dbItem.baseStats[stat] * levelScale;
                     });
                 }
             }
         });
-        return total;
+        return flat;
     }
 
-    getBonusStats() {
-        const p = this.getPossessionStats();
-        const e = this.getEquippedStats();
-        
-        const total = {};
-        const keys = new Set([...Object.keys(p), ...Object.keys(e)]);
-        keys.forEach(k => {
-            total[k] = (p[k] || 0) + (e[k] || 0);
-        });
-        return total;
+    getAllBonuses() {
+        return {
+            flat: this.getEquippedFlatBonuses(),
+            mult: this.getPossessionMultipliers()
+        };
     }
 
     getItemById(id) {

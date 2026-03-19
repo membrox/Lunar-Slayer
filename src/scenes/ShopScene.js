@@ -34,7 +34,7 @@ export default class ShopScene extends Phaser.Scene {
             fontSize: '20px', fill: '#FFD700', fontFamily: 'Arial', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.add.text(w / 2, 90, `Stufe ${s.level}  •  ATK: ${s.attack}  •  HP: ${s.maxHp}  •  DEF: ${s.defense}`, {
+        this.add.text(w / 2, 90, `ATK: ${s.attack}  •  HP: ${s.maxHp}  •  DEF: ${s.defense}`, {
             fontSize: '13px', fill: '#aaaaaa', fontFamily: 'Arial'
         }).setOrigin(0.5);
 

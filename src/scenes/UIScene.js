@@ -116,7 +116,6 @@ export default class UIScene extends Phaser.Scene {
                 // Scale sprite to fit the button nicely
                 const scale = (sW - 20) / Math.max(sprite.width, sprite.height);
                 sprite.setScale(scale);
-                panel.add(sprite);
             } else {
                 this.add.text(bx, skillY - 5, sk.icon, { fontSize: '28px' }).setOrigin(0.5).setPadding(8);
             }
@@ -161,7 +160,7 @@ export default class UIScene extends Phaser.Scene {
             delay: 10000, // Every 10 seconds
             loop: true,
             callback: () => {
-                if (this.stats) SaveSystem.save(this.stats);
+                this.saveBaseStats();
             }
         });
 
@@ -209,6 +208,9 @@ export default class UIScene extends Phaser.Scene {
                     this.showEquipmentMenu();
                 } else if (item.name === 'Summon') {
                     this.showSummonMenu();
+                } else if (item.name === 'Shop') {
+                    this.scene.stop('GameScene');
+                    this.scene.start('ShopScene', { stage: this.stats.stage, playerStats: this.stats });
                 } else {
                     // Other tabs...
                 }
@@ -217,11 +219,6 @@ export default class UIScene extends Phaser.Scene {
             // Highlight selected (Skill by default maybe)
             if (i === 2) icon.setTint(0xffaa00);
         });
-
-        // XP Bar (Below upgrade list)
-        this.xpBarBg = this.add.rectangle(w / 2, listTop + listH + 10, w - 40, 14, 0x000000, 0.8).setOrigin(0.5);
-        this.xpBar = this.add.rectangle(w / 2 - (w - 40) / 2, listTop + listH + 10, 0, 10, 0xffaa00).setOrigin(0, 0.5);
-        this.xpText = this.add.text(w / 2, listTop + listH + 10, '0 / 100 XP', { fontSize: '10px', fill: '#fff' }).setOrigin(0.5);
 
         // Initial update
         if (this.stats) {
@@ -279,6 +276,8 @@ export default class UIScene extends Phaser.Scene {
             
             const game = this.scene.get('GameScene');
             if (game && game.buyBaseUpgrade) {
+                // Sync gold to baseStats before upgrading
+                if (game.baseStats) game.baseStats.gold = stats.gold;
                 game.buyBaseUpgrade(id, upg.increment);
             }
 
@@ -430,13 +429,6 @@ export default class UIScene extends Phaser.Scene {
             const pct = Math.max(0, Math.min(1, killed / total));
             this.bossProgressBar.width = 300 * pct;
         }
-
-        const level = Number(stats.level) || 1;
-        const xp = Number(stats.xp) || 0;
-        const xpNeeded = level * 100;
-        const xpPct = Math.max(0, Math.min(1, xp / xpNeeded));
-        if (this.xpBar && this.xpBar.active) this.xpBar.width = (this.scale.width - 40) * xpPct;
-        if (this.xpText && this.xpText.active) this.xpText.setText(`${xp} / ${xpNeeded} XP`);
 
         // Upgrades
         if (this.upgrades && this.upgradeUI) {
@@ -662,13 +654,13 @@ export default class UIScene extends Phaser.Scene {
             }
         });
 
-        // XP Bar (Detail)
+        // Enhance Progress (Detail)
         const cost = invItem.level * rarity.enhanceCost;
         const barW = 120;
         const xpBg = this.add.rectangle(-250, -165, barW, 14, 0x000000).setOrigin(0.5);
         const ratio = Math.min(1, invItem.count / cost);
         const xpFill = this.add.rectangle(-250 - barW / 2, -165, barW * ratio, 14, 0x3498db).setOrigin(0, 0.5);
-        const xpText = this.add.text(-250, -150, `${invItem.count}/${cost}`, { fontSize: '12px', fill: '#fff' }).setOrigin(0.5);
+        const xpText = this.add.text(-250, -150, `Need ${cost} total`, { fontSize: '12px', fill: '#fff' }).setOrigin(0.5);
 
         panel.add([iconBg, icon, lvlLabel, name, rarityName, posEffect, posVal, eqEffect, eqVal, equipBtn, equipTxt, enhanceBtn, enhanceTxt, xpBg, xpFill, xpText]);
     }
@@ -700,7 +692,7 @@ export default class UIScene extends Phaser.Scene {
             
             const lvl = this.add.text(x - 50, y + 40, `Lv.${invItem.level}`, { fontSize: '14px', fill: '#fff' });
             
-            // Progress Bar
+            // Enhance Progress Bar
             const cost = invItem.level * rarity.enhanceCost;
             const barW = 110;
             const pBg = this.add.rectangle(x, y + 55, barW, 10, 0x000000);
@@ -867,7 +859,7 @@ export default class UIScene extends Phaser.Scene {
         if (pullRes.success) {
             this.stats.gems -= pullRes.cost;
             this.updateStats(this.stats);
-            SaveSystem.save(this.stats);
+            this.saveBaseStats();
 
             // Add to inventory (Using the new addItem method)
             pullRes.items.forEach(item => {
@@ -923,5 +915,18 @@ export default class UIScene extends Phaser.Scene {
             this.isSummonOpen = false;
             this.showSummonMenu(); 
         });
+    }
+
+    saveBaseStats() {
+        if (!this.stats) return;
+        const game = this.scene.get('GameScene');
+        if (game && game.baseStats) {
+            // Sync current volatile state like gold/gems to baseStats before saving
+            game.baseStats.gold = Math.floor(this.stats.gold);
+            game.baseStats.gems = this.stats.gems;
+            game.baseStats.emeralds = this.stats.emeralds;
+            game.baseStats.stage = game.currentStage;
+            SaveSystem.save(game.baseStats);
+        }
     }
 }
