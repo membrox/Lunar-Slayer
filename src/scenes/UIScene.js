@@ -249,8 +249,23 @@ export default class UIScene extends Phaser.Scene {
 
         if (upg.icon) {
             const icon = this.add.image(-295, 0, upg.icon).setOrigin(0.5);
-            const iconScale = 64 / Math.max(icon.width, icon.height);
+            // Enlarged icon (90px)
+            const iconScale = 90 / Math.max(icon.width, icon.height);
             icon.setScale(iconScale);
+
+            // Create circular mask for nested effect
+            const maskGraphic = this.add.graphics();
+            maskGraphic.fillStyle(0xffffff);
+            maskGraphic.fillCircle(-295, 0, 48); // Slightly smaller than the full silver oval
+            maskGraphic.setVisible(false);
+            
+            // Add graphic to row container so it moves with it
+            row.add(maskGraphic);
+            
+            // Apply mask (Note: Geometry Mask)
+            const mask = maskGraphic.createGeometryMask();
+            icon.setMask(mask);
+            
             row.add(icon);
         }
 
