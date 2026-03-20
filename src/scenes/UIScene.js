@@ -78,12 +78,13 @@ export default class UIScene extends Phaser.Scene {
         rightArrow.on('pointerdown', () => this.showStageSelector());
 
         // Boss Progress Bar (Positioned in the slot)
-        const barWidth = 911 * headerScale;
+        const barWidth = 830 * headerScale; 
         const barHeight = 44 * headerScale;
         const barY = 101 * headerScale;
+        const barX = -442 * headerScale; // Slot starts approx here in 1376 texture
 
-        const barBg = this.add.rectangle(0, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0.5);
-        this.bossProgressBar = this.add.rectangle(-barWidth/2, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
+        const barBg = this.add.rectangle(barX, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0, 0.5);
+        this.bossProgressBar = this.add.rectangle(barX, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
 
         this.headerContainer.add([stageHeader, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar]);
 
