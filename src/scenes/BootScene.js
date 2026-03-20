@@ -64,6 +64,7 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('icon_regen', '/HP Regeneration.png');
         this.load.image('icon_crit_rate', '/CritRate.png');
         this.load.image('icon_crit_dmg', '/Critical_Damage.png');
+        this.load.image('stage_header', '/Stages.png');
     }
 
     create() {

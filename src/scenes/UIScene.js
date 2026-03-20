@@ -57,34 +57,37 @@ export default class UIScene extends Phaser.Scene {
         this.hudContainer.add([this.hudBanner, this.goldText, this.gemsText, this.emeraldsText]);
 
         // ── Stage Header ──────────────────────────────────────────────────────
-        const headerY = 140;
+        const headerY = 200; // Adjusted for larger graphic
         this.headerContainer = this.add.container(w / 2, headerY);
 
-        // Stage Header Background (Procedural)
-        const headerGfx = this.add.graphics();
-        headerGfx.fillStyle(0x1a1a2e, 0.6);
-        headerGfx.fillRoundedRect(-150, -30, 300, 80, 10);
-        headerGfx.lineStyle(2, 0x444466);
-        headerGfx.strokeRoundedRect(-150, -30, 300, 80, 10);
+        const stageHeader = this.add.image(0, 0, 'stage_header').setOrigin(0.5);
+        const headerScale = 400 / stageHeader.width;
+        stageHeader.setScale(headerScale);
 
-        // Stage Arrows
-        const leftArrow = this.add.text(-130, 0, '◀', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
-        const rightArrow = this.add.text(130, 0, '▶', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+        // Interactive Arrow Areas (Invisible)
+        const arrowW = 60 * headerScale;
+        const arrowH = 80 * headerScale;
+        const leftArrow = this.add.rectangle(-358 * headerScale, 76 * headerScale, 80, 80, 0x000000, 0.01).setInteractive();
+        const rightArrow = this.add.rectangle(358 * headerScale, 76 * headerScale, 80, 80, 0x000000, 0.01).setInteractive();
 
-        this.stageText = this.add.text(0, -5, `STAGE ${data.stage || 1}`, {
-            fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial'
+        this.stageText = this.add.text(0, -84 * headerScale, `STAGE ${data.stage || 1}`, {
+            fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial',
+            stroke: '#000000', strokeThickness: 4
         }).setOrigin(0.5).setInteractive();
 
         this.stageText.on('pointerdown', () => this.showStageSelector());
         leftArrow.on('pointerdown', () => this.showStageSelector());
         rightArrow.on('pointerdown', () => this.showStageSelector());
 
-        // Boss Progress Bar
-        const barBg = this.add.rectangle(0, 30, 300, 10, 0x330000).setOrigin(0.5);
-        this.bossProgressBar = this.add.rectangle(-150, 30, 0, 10, 0xaa0000).setOrigin(0, 0.5);
-        const bossIcon = this.add.text(170, 30, '👹', { fontSize: '20px' }).setOrigin(0.5);
+        // Boss Progress Bar (Positioned in the slot)
+        const barWidth = 911 * headerScale;
+        const barHeight = 40 * headerScale; // Slightly thinner than slot height (50)
+        const barY = 101 * headerScale;
 
-        this.headerContainer.add([headerGfx, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar, bossIcon]);
+        const barBg = this.add.rectangle(2 * headerScale, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0.5);
+        this.bossProgressBar = this.add.rectangle((2 * headerScale) - barWidth/2, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
+
+        this.headerContainer.add([stageHeader, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar]);
 
         // ── Unified UI Dashboard (Rahmen5reihen) ───────────────────────────────────
         const dashboardY = 878;
