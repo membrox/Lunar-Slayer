@@ -57,7 +57,7 @@ export default class UIScene extends Phaser.Scene {
         this.hudContainer.add([this.hudBanner, this.goldText, this.gemsText, this.emeraldsText]);
 
         // ── Stage Header ──────────────────────────────────────────────────────
-        const headerY = 140; // Original position
+        const headerY = 180; // Adjusted to avoid overlap with top banner
         this.headerContainer = this.add.container(w / 2, headerY);
 
         const stageHeader = this.add.image(0, 0, 'stage_header').setOrigin(0.5);
