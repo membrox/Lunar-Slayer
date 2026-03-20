@@ -254,10 +254,11 @@ export default class UIScene extends Phaser.Scene {
             row.add(icon);
         }
 
-        const labelX = -205;
-        const title = this.add.text(labelX, -4, `${upg.name} Lv.${level}`, {
+        const labelX = -180;
+        const title = this.add.text(labelX, -14, `${upg.name} Lv.${level}`, {
             fontSize: '18px', fill: '#E0E0FF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
-        }).setOrigin(0, 0.5);
+        }).setOrigin(0.5, 0.5);
+        row.add(title);
 
         let currentVal = upg.id === 'damage' ? this.stats.attack : (upg.id === 'hp' ? this.stats.maxHp : (this.stats[upg.id] || 0));
         if (upg.id === 'critDamage') {
@@ -270,9 +271,10 @@ export default class UIScene extends Phaser.Scene {
 
         let nextVal = currentVal + upg.increment;
         const suffix = upg.suffix || '';
-        const valText = this.add.text(labelX, 22, `${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`, {
+        const valText = this.add.text(labelX, 14, `${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`, {
             fontSize: '15px', fill: '#B0B0CC', fontStyle: 'bold'
-        }).setOrigin(0, 0.5);
+        }).setOrigin(0.5, 0.5);
+        row.add(valText);
 
         const costX = 270; // Center of the cost field box
         const buyBtn = this.add.rectangle(costX, 0, 140, 60, 0x000000, 0.01).setInteractive().setOrigin(0.5);
