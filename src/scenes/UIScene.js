@@ -57,22 +57,20 @@ export default class UIScene extends Phaser.Scene {
         this.hudContainer.add([this.hudBanner, this.goldText, this.gemsText, this.emeraldsText]);
 
         // ── Stage Header ──────────────────────────────────────────────────────
-        const headerY = 200; // Adjusted for larger graphic
+        const headerY = 140; // Original position
         this.headerContainer = this.add.container(w / 2, headerY);
 
         const stageHeader = this.add.image(0, 0, 'stage_header').setOrigin(0.5);
-        const headerScale = 400 / stageHeader.width;
+        const headerScale = 320 / stageHeader.width; // Compact size
         stageHeader.setScale(headerScale);
 
         // Interactive Arrow Areas (Invisible)
-        const arrowW = 60 * headerScale;
-        const arrowH = 80 * headerScale;
-        const leftArrow = this.add.rectangle(-358 * headerScale, 76 * headerScale, 80, 80, 0x000000, 0.01).setInteractive();
-        const rightArrow = this.add.rectangle(358 * headerScale, 76 * headerScale, 80, 80, 0x000000, 0.01).setInteractive();
+        const leftArrow = this.add.rectangle(-358 * headerScale, 20 * headerScale, 70, 70, 0x000000, 0.01).setInteractive();
+        const rightArrow = this.add.rectangle(358 * headerScale, 20 * headerScale, 70, 70, 0x000000, 0.01).setInteractive();
 
         this.stageText = this.add.text(0, -84 * headerScale, `STAGE ${data.stage || 1}`, {
-            fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial',
-            stroke: '#000000', strokeThickness: 4
+            fontSize: '18px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial',
+            stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5).setInteractive();
 
         this.stageText.on('pointerdown', () => this.showStageSelector());
@@ -81,11 +79,11 @@ export default class UIScene extends Phaser.Scene {
 
         // Boss Progress Bar (Positioned in the slot)
         const barWidth = 911 * headerScale;
-        const barHeight = 40 * headerScale; // Slightly thinner than slot height (50)
+        const barHeight = 44 * headerScale;
         const barY = 101 * headerScale;
 
-        const barBg = this.add.rectangle(2 * headerScale, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0.5);
-        this.bossProgressBar = this.add.rectangle((2 * headerScale) - barWidth/2, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
+        const barBg = this.add.rectangle(0, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0.5);
+        this.bossProgressBar = this.add.rectangle(-barWidth/2, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
 
         this.headerContainer.add([stageHeader, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar]);
 

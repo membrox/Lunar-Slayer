@@ -57,7 +57,7 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('hud_banner', '/Banner obenv2.png');
         this.load.image('hud_bottom', '/Banner unten.png');
         this.load.image('main_dashboard', '/rahmen5reihen.png');
-        
+
         // Load Upgrade Category Icons
         this.load.image('icon_damage', '/Schaden.png');
         this.load.image('icon_hp', '/HP.png');
@@ -102,11 +102,11 @@ export default class BootScene extends Phaser.Scene {
 
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
-            const g = data[i+1];
-            const b = data[i+2];
+            const g = data[i + 1];
+            const b = data[i + 2];
             // Treat almost-black or very dark grey (grid) as transparent
             if (r < 30 && g < 30 && b < 30) {
-                data[i+3] = 0;
+                data[i + 3] = 0;
             }
         }
         ctx.putImageData(imageData, 0, 0);
@@ -129,7 +129,7 @@ export default class BootScene extends Phaser.Scene {
 
     makeSkillSheet(sourceKey, targetKey) {
         const source = this.textures.get(sourceKey).getSourceImage();
-        
+
         // testzauber1.png has Ice, Lightning, Heart in one row (3 frames)
         // Since the user cleaned the asset, we can use the full frame dimensions.
         const frameW = Math.floor(source.width / 3);
