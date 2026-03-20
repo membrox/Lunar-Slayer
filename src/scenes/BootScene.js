@@ -55,6 +55,7 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('shield_myth_raw', '/schilder myth.png');
         this.load.image('shield_legendary_raw', '/Schilder Legendary.png');
         this.load.image('hud_banner', '/Banner obenv2.png');
+        this.load.image('hud_bottom', '/Banner unten.png');
         this.load.image('main_dashboard', '/rahmen5reihen.png');
         
         // Load Upgrade Category Icons

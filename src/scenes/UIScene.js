@@ -86,6 +86,12 @@ export default class UIScene extends Phaser.Scene {
         // ── Unified UI Dashboard (Rahmen5reihen) ───────────────────────────────────
         const dashboardY = 878; 
         this.add.image(w / 2, dashboardY, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 640);
+        
+        // Bottom Banner - Centered in the 1198-1280 gap
+        this.add.image(w / 2, 1239, 'hud_bottom')
+            .setOrigin(0.5)
+            .setScale(w / 1376) 
+            .setDepth(-1);
 
         // ── Top Bar (Skills & Auto) ──────────────────────────────────────────
         const skillY = 622; // Slightly lowered for better visual centering
@@ -438,7 +444,7 @@ export default class UIScene extends Phaser.Scene {
                 const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, upgLevel - 1));
                 const suffix = upg.suffix || '';
                 
-                ui.title.setText(`${upg.name} Lv.${upgLevel}`).setOrigin(0, 0.5).setY(y - 4);
+                ui.title.setText(`${upg.name} Lv.${upgLevel}`);
                 
                 let currentVal = upg.id === 'damage' ? Number(stats.attack) : (upg.id === 'hp' ? Number(stats.maxHp) : (Number(stats[upg.id]) || 0));
                 
@@ -452,15 +458,11 @@ export default class UIScene extends Phaser.Scene {
                 }
 
                 let nextVal = currentVal + upg.increment;
-                if (ui.valText && ui.valText.active) ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`).setOrigin(0, 0.5).setY(y + 22);
-                if (ui.costText && ui.costText.active) { ui.costText.setText(`${cost}`); ui.costText.setX(ui.costX - 40); ui.costText.setY(y + 10); ui.costText.setOrigin(0.5, 0.5); }
+                if (ui.valText && ui.valText.active) ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
                 
-                if (ui.buyBtn && ui.buyBtn.active) {
-                    if (Number(stats.gold) < cost) {
-                        ui.costText.setFill('#ff4444'); // Vibrant red for unaffordable
-                    } else {
-                        ui.costText.setFill('#FFD700'); // Premium gold for affordable
-                    }
+                if (ui.costText && ui.costText.active) {
+                    ui.costText.setText(`${cost}`);
+                    ui.costText.setFill(Number(stats.gold) < cost ? '#ff4444' : '#FFD700');
                 }
             });
         }
