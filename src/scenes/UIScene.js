@@ -85,6 +85,7 @@ export default class UIScene extends Phaser.Scene {
 
         const barBg = this.add.rectangle(barX, barY, barWidth, barHeight, 0x330000, 0.5).setOrigin(0, 0.5);
         this.bossProgressBar = this.add.rectangle(barX, barY, 0, barHeight, 0xaa0000).setOrigin(0, 0.5);
+        this.maxBarWidth = barWidth;
 
         this.headerContainer.add([stageHeader, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar]);
 
@@ -346,7 +347,7 @@ export default class UIScene extends Phaser.Scene {
     updateBossStatus(hp, maxHp) {
         if (!this.bossProgressBar) return;
         const pct = Math.max(0, hp / maxHp);
-        this.bossProgressBar.width = 300 * pct;
+        this.bossProgressBar.width = this.maxBarWidth * pct;
     }
 
     updateAutoButton() {
@@ -460,7 +461,7 @@ export default class UIScene extends Phaser.Scene {
 
         if (killed !== undefined && total !== undefined && this.bossProgressBar && this.bossProgressBar.active) {
             const pct = Math.max(0, Math.min(1, killed / total));
-            this.bossProgressBar.width = 300 * pct;
+            this.bossProgressBar.width = this.maxBarWidth * pct;
         }
 
         // Upgrades
