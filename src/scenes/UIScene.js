@@ -3,7 +3,7 @@ import { EquipmentManager, RARITIES } from '../utils/EquipmentManager.js';
 import { SummonManager, SUMMON_CONFIG } from '../utils/SummonManager.js';
 
 const UI_ROW_START_Y = 732;
-const UI_ROW_GAP = 81;
+const UI_ROW_GAP = 98.5;
 
 export default class UIScene extends Phaser.Scene {
     constructor() {
@@ -13,14 +13,14 @@ export default class UIScene extends Phaser.Scene {
     create(data) {
         const w = this.scale.width;
         const h = this.scale.height;
-        
+
         this.stats = data.playerStats;
         this.onSkill = data.onSkill;
         this.isAutoSkills = this.stats.autoSkills || false;
         this.globalCooldown = 0;
         this.skillCooldowns = [0, 0, 0, 0, 0, 0];
         this.skillMaxCooldowns = [5000, 5000, 5000, 5000, 5000, 5000];
-        this.baseCosts = { damage: 3, hp: 3, hpRegen: 9, crit: 150 }; 
+        this.baseCosts = { damage: 3, hp: 3, hpRegen: 9, crit: 150 };
         this.upgradeUI = {};
         this.skillBars = [];
         this.skillButtons = [];
@@ -34,43 +34,44 @@ export default class UIScene extends Phaser.Scene {
         const classIndex = this.stats.classIndex ?? 0;
 
         // ── Top Bar (Currencies) ──────────────────────────────────────────────
+        this.hudContainer = this.add.container(w / 2, 50);
+
         const bannerH = 100;
-        this.hudBanner = this.add.image(w / 2, 50, 'hud_banner').setOrigin(0.5).setDisplaySize(Math.min(w * 0.95, 1000), bannerH);
-        
-        // Currencies - Positioned to align with icons in the 'Banner oben2.png' asset
-        // Estimated offsets based on the 1000px banner width
-        const bx = w / 2;
-        const by = 50;
-        
+        this.hudBanner = this.add.image(0, 0, 'hud_banner').setOrigin(0.5).setDisplaySize(Math.min(w * 0.95, 1000), bannerH);
+
         // Gold
-        this.goldText = this.add.text(bx - 36, by + 13, `${Math.floor(this.stats.gold)}`, {
+        this.goldText = this.add.text(-36, 13, `${Math.floor(this.stats.gold)}`, {
             fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
-        
+
         // Gems
-        this.gemsText = this.add.text(bx + 109, by + 13, `${this.stats.gems || 0}`, {
+        this.gemsText = this.add.text(109, 13, `${this.stats.gems || 0}`, {
             fontSize: '18px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
 
         // Emeralds
-        this.emeraldsText = this.add.text(bx + 252, by + 13, `${this.stats.emeralds || 0}`, {
+        this.emeraldsText = this.add.text(252, 13, `${this.stats.emeralds || 0}`, {
             fontSize: '18px', fill: '#00ff00', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
 
+        this.hudContainer.add([this.hudBanner, this.goldText, this.gemsText, this.emeraldsText]);
+
         // ── Stage Header ──────────────────────────────────────────────────────
         const headerY = 140;
+        this.headerContainer = this.add.container(w / 2, headerY);
+
         // Stage Header Background (Procedural)
         const headerGfx = this.add.graphics();
         headerGfx.fillStyle(0x1a1a2e, 0.6);
-        headerGfx.fillRoundedRect(w / 2 - 150, headerY - 30, 300, 80, 10);
+        headerGfx.fillRoundedRect(-150, -30, 300, 80, 10);
         headerGfx.lineStyle(2, 0x444466);
-        headerGfx.strokeRoundedRect(w / 2 - 150, headerY - 30, 300, 80, 10);
-        
-        // Stage Arrows
-        const leftArrow = this.add.text(w / 2 - 130, headerY, '◀', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
-        const rightArrow = this.add.text(w / 2 + 130, headerY, '▶', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+        headerGfx.strokeRoundedRect(-150, -30, 300, 80, 10);
 
-        this.stageText = this.add.text(w / 2, headerY - 5, `STAGE ${data.stage || 1}`, {
+        // Stage Arrows
+        const leftArrow = this.add.text(-130, 0, '◀', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+        const rightArrow = this.add.text(130, 0, '▶', { fontSize: '24px', fill: '#FFD700' }).setOrigin(0.5).setInteractive();
+
+        this.stageText = this.add.text(0, -5, `STAGE ${data.stage || 1}`, {
             fontSize: '22px', fill: '#ffffff', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0.5).setInteractive();
 
@@ -79,36 +80,42 @@ export default class UIScene extends Phaser.Scene {
         rightArrow.on('pointerdown', () => this.showStageSelector());
 
         // Boss Progress Bar
-        this.add.rectangle(w / 2, headerY + 30, 300, 10, 0x330000).setOrigin(0.5);
-        this.bossProgressBar = this.add.rectangle(w / 2 - 150, headerY + 30, 0, 10, 0xaa0000).setOrigin(0, 0.5);
-        this.add.text(w / 2 + 170, headerY + 30, '👹', { fontSize: '20px' }).setOrigin(0.5);
+        const barBg = this.add.rectangle(0, 30, 300, 10, 0x330000).setOrigin(0.5);
+        this.bossProgressBar = this.add.rectangle(-150, 30, 0, 10, 0xaa0000).setOrigin(0, 0.5);
+        const bossIcon = this.add.text(170, 30, '👹', { fontSize: '20px' }).setOrigin(0.5);
+
+        this.headerContainer.add([headerGfx, leftArrow, rightArrow, this.stageText, barBg, this.bossProgressBar, bossIcon]);
 
         // ── Unified UI Dashboard (Rahmen5reihen) ───────────────────────────────────
-        const dashboardY = 878; 
-        this.add.image(w / 2, dashboardY, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 640);
-        
-        // Bottom Banner - Centered in the 1198-1280 gap
-        this.add.image(w / 2, 1239, 'hud_bottom')
+        const dashboardY = 878;
+        this.dashboardContainer = this.add.container(w / 2, dashboardY);
+
+        const mainDash = this.add.image(0, 0, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 640);
+
+        // Bottom Banner - Positioned relative to dashboard center
+        const hudBottom = this.add.image(0, 361, 'hud_bottom')
             .setOrigin(0.5)
-            .setScale(w / 1376) 
+            .setScale(w / 1376)
             .setDepth(-1);
 
-        // ── Top Bar (Skills & Auto) ──────────────────────────────────────────
-        const skillY = 622; // Slightly lowered for better visual centering
-        const autoX = w / 7 * 0.5;
-        const autoY = skillY;
+        this.dashboardContainer.add([mainDash, hudBottom]);
 
-        this.autoToggleBtn = this.add.circle(autoX, autoY, 35, 0x442200, 0.01).setInteractive();
-        
-        // Procedural Auto Icon (Circular Arrow) - Positioned in the first slot
+        // ── Top Bar (Skills & Auto) ──────────────────────────────────────────
+        // Positions are now relative to the dashboardContainer (center 0,0)
+        // Original skillY was 622, dashboardY was 878. Difference = -256
+        const relSkillY = -256;
+        const autoX = -w / 2 + (w / 7 * 0.5);
+
+        this.autoToggleBtn = this.add.circle(autoX, relSkillY, 35, 0x442200, 0.01).setInteractive();
+
         const autoIconGfx = this.add.graphics();
         autoIconGfx.lineStyle(4, 0xffffff);
-        autoIconGfx.arc(autoX, autoY, 24, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(280));
+        autoIconGfx.arc(autoX, relSkillY, 24, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(280));
         autoIconGfx.strokePath();
         autoIconGfx.fillStyle(0xffffff);
-        autoIconGfx.fillTriangle(autoX + 24, autoY, autoX + 16, autoY - 10, autoX + 32, autoY - 10);
+        autoIconGfx.fillTriangle(autoX + 24, relSkillY, autoX + 16, relSkillY - 10, autoX + 32, relSkillY - 10);
 
-        // SURGICAL: No "AUTO" text as requested for "perfectly clean" look
+        this.dashboardContainer.add([this.autoToggleBtn, autoIconGfx]);
 
         // ── 6 Skills ─────────────────────────────────────────────────────────
         const skillData = [
@@ -121,26 +128,31 @@ export default class UIScene extends Phaser.Scene {
         ];
 
         const sW = 84;
-        const skillStartX = w / 7 * 1.5;
+        const skillStartX = -w / 2 + (w / 7 * 1.5);
         const skillGap = w / 7;
 
         skillData.forEach((sk, i) => {
             const bx = skillStartX + i * skillGap;
-            const by = autoY;
+            const by = relSkillY;
             const bg = this.add.rectangle(bx, by, sW, sW, 0x111122, 0.01).setOrigin(0.5).setInteractive();
-            
+
+            this.dashboardContainer.add(bg);
+
             if (sk.sprite) {
                 const sprite = this.add.sprite(bx, by, sk.sprite, sk.frame).setOrigin(0.5);
                 const scale = (sW - 20) / Math.max(sprite.width, sprite.height);
                 sprite.setScale(scale);
+                this.dashboardContainer.add(sprite);
             } else {
-                this.add.text(bx, by, sk.icon, { fontSize: '28px' }).setOrigin(0.5);
+                const txt = this.add.text(bx, by, sk.icon, { fontSize: '28px' }).setOrigin(0.5);
+                this.dashboardContainer.add(txt);
             }
-            
+
             // CD Overlay
             const cdOverlay = this.add.rectangle(bx, by + sW / 2, sW - 4, 0, 0x000000, 0.8).setOrigin(0.5, 1);
             const cdText = this.add.text(bx, by, '', { fontSize: '22px', fill: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setAlpha(0);
-            
+
+            this.dashboardContainer.add([cdOverlay, cdText]);
             this.skillBars.push({ overlay: cdOverlay, text: cdText });
             this.skillButtons.push(bg);
             bg.on('pointerdown', () => this.triggerSkill(i));
@@ -176,11 +188,14 @@ export default class UIScene extends Phaser.Scene {
         ];
 
         this.upgrades.forEach((upg, i) => {
-            this.createUpgradeRow(upg, w / 2, UI_ROW_START_Y + i * UI_ROW_GAP);
+            const relY = (UI_ROW_START_Y + i * UI_ROW_GAP) - dashboardY;
+            this.createUpgradeRow(upg, 0, relY);
         });
 
         // ── Bottom Nav ────────────────────────────────────────────────────────
-        const navY = h - 60;
+        // Relativ to dashboard center (878)
+        // Original navY was h - 60 (1220). Difference = 342
+        const relNavY = 342;
         const navItems = [
             { name: 'Equipment', icon: '⚔️' },
             { name: 'Costume', icon: '🐕' },
@@ -192,15 +207,17 @@ export default class UIScene extends Phaser.Scene {
 
         navItems.forEach((item, i) => {
             const ix = (w / (navItems.length + 1)) * (i + 1);
-            const btn = this.add.container(ix, navY);
-            
+            const relX = ix - w / 2;
+            const btn = this.add.container(relX, relNavY);
+            this.dashboardContainer.add(btn);
+
             // Transparent nav boxes for premium floating look
             const nbg = this.add.rectangle(0, 0, 80, 100, 0x000000, 0.01).setInteractive();
             const icon = this.add.text(0, -10, item.icon, { fontSize: '28px' }).setOrigin(0.5);
             const label = this.add.text(0, 25, item.name, { fontSize: '10px', fill: '#ffffff' }).setOrigin(0.5);
-            
+
             btn.add([nbg, icon, label]);
-            
+
             nbg.on('pointerdown', () => {
                 if (item.name === 'Equipment') {
                     this.showEquipmentMenu();
@@ -225,16 +242,20 @@ export default class UIScene extends Phaser.Scene {
     }
 
     createUpgradeRow(upg, x, y) {
+        const row = this.add.container(x, y);
+        this.dashboardContainer.add(row);
+
         const level = this.stats[upg.id + 'Level'] || 1;
 
         if (upg.icon) {
-            const icon = this.add.image(x - 295, y, upg.icon).setOrigin(0.5);
+            const icon = this.add.image(-295, 0, upg.icon).setOrigin(0.5);
             const iconScale = 64 / Math.max(icon.width, icon.height);
             icon.setScale(iconScale);
+            row.add(icon);
         }
 
-        const labelX = x - 205;
-        const title = this.add.text(labelX, y - 4, `${upg.name} Lv.${level}`, {
+        const labelX = -205;
+        const title = this.add.text(labelX, -4, `${upg.name} Lv.${level}`, {
             fontSize: '18px', fill: '#E0E0FF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
         }).setOrigin(0, 0.5);
 
@@ -249,17 +270,20 @@ export default class UIScene extends Phaser.Scene {
 
         let nextVal = currentVal + upg.increment;
         const suffix = upg.suffix || '';
-        const valText = this.add.text(labelX, y + 22, `${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`, {
+        const valText = this.add.text(labelX, 22, `${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`, {
             fontSize: '15px', fill: '#B0B0CC', fontStyle: 'bold'
         }).setOrigin(0, 0.5);
 
-        const costX = x + 268;
-        const buyBtn = this.add.rectangle(costX - 60, y, 130, 60, 0x000000, 0.01).setInteractive().setOrigin(0.5);
+        const costX = 270; // Center of the cost field box
+        const buyBtn = this.add.rectangle(costX, 0, 140, 60, 0x000000, 0.01).setInteractive().setOrigin(0.5);
 
         const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, level - 1));
-        const costText = this.add.text(costX - 40, y + 10, `${cost}`, {
-            fontSize: '20px', fill: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        
+        const costText = this.add.text(costX, 0, `${cost}`, {
+            fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5, 0.5);
+
+        row.add([buyBtn, costText]);
 
         this.upgradeUI[upg.id] = { title, valText, costText, buyBtn, costX };
 
@@ -277,7 +301,7 @@ export default class UIScene extends Phaser.Scene {
 
         if (stats.gold >= cost) {
             stats.gold -= cost;
-            
+
             const game = this.scene.get('GameScene');
             if (game && game.buyBaseUpgrade) {
                 // Sync gold to baseStats before upgrading
@@ -295,7 +319,7 @@ export default class UIScene extends Phaser.Scene {
     triggerSkill(index) {
         if (this.globalCooldown > 0) return;
         if (this.skillCooldowns[index] > 0) return;
-        
+
         let success = false;
         if (this.onSkill) {
             success = this.onSkill(index);
@@ -342,12 +366,12 @@ export default class UIScene extends Phaser.Scene {
 
         // Overlay
         const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.75).setInteractive();
-        
+
         // Panel
         const panelW = 600;
         const panelH = 400;
         const panel = this.add.container(w / 2, h / 2);
-        
+
         const bg = this.add.rectangle(0, 0, panelW, panelH, 0x1a1a2e).setStrokeStyle(4, 0x444466);
         const title = this.add.text(0, -150, 'Wähle eine Stage', {
             fontSize: '32px', fill: '#FFD700', fontStyle: 'bold', stroke: '#000', strokeThickness: 4
@@ -374,7 +398,7 @@ export default class UIScene extends Phaser.Scene {
         sliderThumb.on('drag', (pointer, dragX) => {
             dragX = Phaser.Math.Clamp(dragX, -sliderW / 2, sliderW / 2);
             sliderThumb.x = dragX;
-            
+
             const pct = (dragX + sliderW / 2) / sliderW;
             const s = Math.round(pct * (maxStage - 1)) + 1;
             if (s !== selectedStage) {
@@ -386,7 +410,7 @@ export default class UIScene extends Phaser.Scene {
         // OK Button
         const okBtn = this.add.rectangle(-100, 140, 160, 60, 0x228833).setInteractive().setOrigin(0.5);
         const okText = this.add.text(-100, 140, 'OK', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        
+
         // Close Button (Cancel)
         const cancelBtn = this.add.rectangle(100, 140, 160, 60, 0xcc3333).setInteractive().setOrigin(0.5);
         const cancelText = this.add.text(100, 140, 'X', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
@@ -414,7 +438,7 @@ export default class UIScene extends Phaser.Scene {
     updateStats(stats, stage, killed, total) {
         if (!stats) return;
         this.stats = stats;
-        
+
         if (this.goldText && this.goldText.active) this.goldText.setText(`${Math.floor(Number(stats.gold) || 0)}`);
         if (this.gemsText && this.gemsText.active) this.gemsText.setText(`${Number(stats.gems) || 0}`);
         if (this.emeraldsText && this.emeraldsText.active) this.emeraldsText.setText(`${Number(stats.emeralds) || 0}`);
@@ -428,7 +452,7 @@ export default class UIScene extends Phaser.Scene {
         if (stage !== undefined && this.stageText && this.stageText.active) {
             this.stageText.setText(`STAGE ${stage}`);
         }
-        
+
         if (killed !== undefined && total !== undefined && this.bossProgressBar && this.bossProgressBar.active) {
             const pct = Math.max(0, Math.min(1, killed / total));
             this.bossProgressBar.width = 300 * pct;
@@ -437,29 +461,28 @@ export default class UIScene extends Phaser.Scene {
         // Upgrades
         if (this.upgrades && this.upgradeUI) {
             this.upgrades.forEach((upg, i) => {
-                const y = UI_ROW_START_Y + i * UI_ROW_GAP;
                 const ui = this.upgradeUI[upg.id];
                 if (!ui || !ui.title || !ui.title.active) return;
                 const upgLevel = Number(stats[upg.id + 'Level']) || 1;
                 const cost = Math.floor(upg.baseCost * Math.pow(upg.scale, upgLevel - 1));
                 const suffix = upg.suffix || '';
-                
+
                 ui.title.setText(`${upg.name} Lv.${upgLevel}`);
-                
+
                 let currentVal = upg.id === 'damage' ? Number(stats.attack) : (upg.id === 'hp' ? Number(stats.maxHp) : (Number(stats[upg.id]) || 0));
-                
+
                 // Special mapping for critical stats in UIScene
                 if (upg.id === 'critDamage') {
                     const upgLevel = Number(stats.critDamageLevel) || 1;
                     currentVal = 1.5 + (upgLevel - 1) * 0.1;
                 } else if (upg.id === 'crit') {
                     const upgLevel = Number(stats.critLevel) || 1;
-                    currentVal = 5.0 + (upgLevel - 1) * 1.0; 
+                    currentVal = 5.0 + (upgLevel - 1) * 1.0;
                 }
 
                 let nextVal = currentVal + upg.increment;
                 if (ui.valText && ui.valText.active) ui.valText.setText(`${currentVal.toFixed(1)}${suffix} -> ${nextVal.toFixed(1)}${suffix}`);
-                
+
                 if (ui.costText && ui.costText.active) {
                     ui.costText.setText(`${cost}`);
                     ui.costText.setFill(Number(stats.gold) < cost ? '#ff4444' : '#FFD700');
@@ -482,7 +505,7 @@ export default class UIScene extends Phaser.Scene {
             // Auto Skill Trigger Logic
             let hasEnemy = false;
             const px = (game.playerPhysics && game.playerPhysics.active) ? game.playerPhysics.x : w / 2;
-            
+
             // Safety check for game state objects
             const boss = game.boss;
             const enemyList = game.enemyList || [];
@@ -507,7 +530,7 @@ export default class UIScene extends Phaser.Scene {
                 } else {
                     if (bar.overlay && bar.overlay.active) bar.overlay.height = 0;
                     if (bar.text && bar.text.active) bar.text.setAlpha(0);
-                    
+
                     // Trigger AUTO
                     if (this.isAutoSkills && hasEnemy && this.globalCooldown <= 0) {
                         if (i !== 3) {
@@ -609,9 +632,9 @@ export default class UIScene extends Phaser.Scene {
         const rarity = RARITIES[dbItem.rarity];
         const iconBg = this.add.rectangle(-250, -250, 140, 140, 0x000000, 0.5).setStrokeStyle(3, rarity.color);
         const icon = this.add.text(-250, -260, dbItem.icon, { fontSize: '80px' }).setOrigin(0.5);
-        
+
         const lvlLabel = this.add.text(-310, -195, `Lv.${invItem.level}`, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
-        
+
         // Equipped marker
         if (this.equipment.isEquipped(id)) {
             const eFlag = this.add.text(-195, -310, 'E', { fontSize: '24px', fill: '#f00', fontStyle: 'bold', backgroundColor: '#fff', padding: 2 });
@@ -698,9 +721,9 @@ export default class UIScene extends Phaser.Scene {
             const rarity = RARITIES[db.rarity];
             const slot = this.add.rectangle(x, y, 120, 120, 0x222233).setStrokeStyle(3, this.selectedInventoryId === db.id ? 0xffffff : rarity.color).setInteractive();
             const icon = this.add.text(x, y - 10, db.icon, { fontSize: '50px' }).setOrigin(0.5);
-            
+
             const lvl = this.add.text(x - 50, y + 40, `Lv.${invItem.level}`, { fontSize: '14px', fill: '#fff' });
-            
+
             // Enhance Progress Bar
             const cost = invItem.level * rarity.enhanceCost;
             const barW = 110;
@@ -725,35 +748,35 @@ export default class UIScene extends Phaser.Scene {
 
     refreshEquipmentMenu(panel) {
         if (!panel) return;
-        
+
         // Find the overlay (it's the rectangle added before the panel)
         // Since we are inside UIScene, we can just look for children
         const overlay = this.children.list.find(c => c.type === 'Rectangle' && c.width === this.scale.width && c.fillAlpha === 0.85);
         if (overlay) overlay.destroy();
         if (panel) panel.destroy();
-        
+
         this.isEquipmentOpen = false;
         this.showEquipmentMenu();
     }
 
     showItemTooltip(item, pointer) {
         if (this.tooltip) this.tooltip.destroy();
-        
+
         const rarityInfo = RARITIES[item.rarity];
         const w = 240;
         const h = 200;
-        
+
         // Offset tooltip to not be under finger/mouse
         const tx = Math.min(pointer.x + 20, this.scale.width - w - 20);
         const ty = Math.min(pointer.y + 20, this.scale.height - h - 20);
-        
+
         const container = this.add.container(tx, ty);
-        
-        const bg = this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.95).setStrokeStyle(2, rarityInfo.color);
+
+        const bg = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.95).setStrokeStyle(2, rarityInfo.color);
         const name = this.add.text(10, 10, item.name, { fontSize: '18px', fill: rarityInfo.colorStr, fontStyle: 'bold' });
         const rarityText = this.add.text(10, 35, rarityInfo.name, { fontSize: '12px', fill: rarityInfo.colorStr });
-        const line = this.add.rectangle(w/2, 55, w - 20, 1, 0x444444);
-        
+        const line = this.add.rectangle(w / 2, 55, w - 20, 1, 0x444444);
+
         let statsStr = '';
         Object.keys(item.stats).forEach(k => {
             let val = item.stats[k];
@@ -761,9 +784,9 @@ export default class UIScene extends Phaser.Scene {
             statsStr += `${k.toUpperCase()}: ${sign}${val}\n`;
         });
         const stats = this.add.text(10, 65, statsStr, { fontSize: '14px', fill: '#ffffff', lineSpacing: 5 });
-        
+
         const flavor = this.add.text(10, h - 45, item.flavor, { fontSize: '11px', fill: '#aaa', fontStyle: 'italic', wordWrap: { width: w - 20 } });
-        
+
         container.add([bg, name, rarityText, line, stats, flavor]);
         container.setDepth(2000);
         this.tooltip = container;
@@ -778,6 +801,9 @@ export default class UIScene extends Phaser.Scene {
 
     syncGameSceneStats() {
         const game = this.scene.get('GameScene');
+        if (game && game.playerStats) {
+            this.updateStats(game.playerStats, game.currentStage);
+        }
         if (game && game.applyEquipmentStats) {
             game.applyEquipmentStats();
         }
@@ -843,7 +869,7 @@ export default class UIScene extends Phaser.Scene {
             const btn = this.add.rectangle(bx, y, 100, 60, 0x442266).setStrokeStyle(2, 0xaa44ff).setInteractive();
             const txt = this.add.text(bx, y - 10, label, { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             const cst = this.add.text(bx, y + 12, `💎 ${cost}`, { fontSize: '12px', fill: '#00ffff' }).setOrigin(0.5);
-            
+
             btn.on('pointerdown', () => this.executeSummon(cat.id, amount));
             btn.on('pointerover', () => btn.setFillStyle(0x553377));
             btn.on('pointerout', () => btn.setFillStyle(0x442266));
@@ -922,7 +948,7 @@ export default class UIScene extends Phaser.Scene {
             overlay.destroy();
             container.destroy();
             this.isSummonOpen = false;
-            this.showSummonMenu(); 
+            this.showSummonMenu();
         });
     }
 
