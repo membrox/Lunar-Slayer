@@ -72,22 +72,6 @@ export default class BootScene extends Phaser.Scene {
         this.makeTransparent('mage_raw_1', 'mage_sheet_1', 192, 256);
         this.makeTransparent('mage_raw_2', 'mage_sheet_2', 256, 256);
         
-        // Inline Stage Header Transparency Fix (Threshold 60)
-        const stageSrc = this.textures.get('stage_header').getSourceImage();
-        const stageCanvas = document.createElement('canvas');
-        stageCanvas.width = stageSrc.width;
-        stageCanvas.height = stageSrc.height;
-        const stageCtx = stageCanvas.getContext('2d');
-        stageCtx.drawImage(stageSrc, 0, 0);
-        const stageImgData = stageCtx.getImageData(0, 0, stageCanvas.width, stageCanvas.height);
-        const stageData = stageImgData.data;
-        for (let i = 0; i < stageData.length; i += 4) {
-            if (stageData[i] < 60 && stageData[i+1] < 60 && stageData[i+2] < 60) stageData[i+3] = 0;
-        }
-        stageCtx.putImageData(stageImgData, 0, 0);
-        this.textures.remove('stage_header');
-        this.textures.addCanvas('stage_header', stageCanvas);
-
         // Process Skill Spritesheet (3 frames horizontal)
         this.makeSkillSheet('testzauber_raw', 'skill_sheet');
 
