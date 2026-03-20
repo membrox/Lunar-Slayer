@@ -43,17 +43,17 @@ export default class UIScene extends Phaser.Scene {
         const by = 50;
         
         // Gold
-        this.goldText = this.add.text(bx - 185, by + 23, `${Math.floor(this.stats.gold)}`, {
+        this.goldText = this.add.text(bx - 36, by + 13, `${Math.floor(this.stats.gold)}`, {
             fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
         
         // Gems
-        this.gemsText = this.add.text(bx + 20, by + 23, `${this.stats.gems || 0}`, {
+        this.gemsText = this.add.text(bx + 109, by + 13, `${this.stats.gems || 0}`, {
             fontSize: '18px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
 
         // Emeralds
-        this.emeraldsText = this.add.text(bx + 225, by + 23, `${this.stats.emeralds || 0}`, {
+        this.emeraldsText = this.add.text(bx + 252, by + 13, `${this.stats.emeralds || 0}`, {
             fontSize: '18px', fill: '#00ff00', fontStyle: 'bold', fontFamily: 'Arial'
         }).setOrigin(0, 0.5);
 
@@ -409,9 +409,9 @@ export default class UIScene extends Phaser.Scene {
         if (!stats) return;
         this.stats = stats;
         
-        if (this.goldText && this.goldText.active) this.goldText.setText(`💰 ${Math.floor(Number(stats.gold) || 0)}`);
-        if (this.gemsText && this.gemsText.active) this.gemsText.setText(`💎 ${Number(stats.gems) || 0}`);
-        if (this.emeraldsText && this.emeraldsText.active) this.emeraldsText.setText(`🟢 ${Number(stats.emeralds) || 0}`);
+        if (this.goldText && this.goldText.active) this.goldText.setText(`${Math.floor(Number(stats.gold) || 0)}`);
+        if (this.gemsText && this.gemsText.active) this.gemsText.setText(`${Number(stats.gems) || 0}`);
+        if (this.emeraldsText && this.emeraldsText.active) this.emeraldsText.setText(`${Number(stats.emeralds) || 0}`);
 
         const hp = Number(stats.hp) || 0;
         const maxHp = Number(stats.maxHp) || 100;
