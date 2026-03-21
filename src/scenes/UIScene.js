@@ -28,6 +28,7 @@ export default class UIScene extends Phaser.Scene {
         this.summonManager = new SummonManager();
         this.isEquipmentOpen = false;
         this.isSummonOpen = false;
+        this.placementElements = {};  // Testbed ID -> { obj, containerWorldX, containerWorldY }
 
         // Debug text
         this.debugText = this.add.text(w / 2, 85, '', { fontSize: '10px', fill: '#00ff00' }).setOrigin(0.5).setAlpha(0);
@@ -91,6 +92,7 @@ export default class UIScene extends Phaser.Scene {
 
         // ── Unified UI Dashboard (Rahmen5reihen) ───────────────────────────────────
         const dashboardY = 878;
+        this.dashboardY = dashboardY;
         this.dashboardContainer = this.add.container(w / 2, dashboardY);
 
         const mainDash = this.add.image(0, 0, 'main_dashboard').setOrigin(0.5).setDisplaySize(w, 640);
@@ -130,6 +132,12 @@ export default class UIScene extends Phaser.Scene {
 
         this.dashboardContainer.add([this.autoToggleBtn, autoIconGfx]);
 
+        // Track auto toggle for placement testbed
+        this.placementElements['skill_auto'] = {
+            objs: [this.autoToggleBtn, autoIconGfx],
+            containerWorldX: w / 2, containerWorldY: dashboardY
+        };
+
         // ── 6 Skills ─────────────────────────────────────────────────────────
         const skillData = [
             { name: 'Feuer', icon: '🔥', color: 0xcc3300 },
@@ -151,6 +159,7 @@ export default class UIScene extends Phaser.Scene {
 
             this.dashboardContainer.add(bg);
 
+            let skillVisual;
             if (sk.sprite) {
                 const sprite = this.add.sprite(bx, by, sk.sprite, sk.frame).setOrigin(0.5);
                 // The skill sheet frames are very tall (1024px) but content is small,
@@ -158,9 +167,11 @@ export default class UIScene extends Phaser.Scene {
                 const targetSize = sW - 30;
                 sprite.setDisplaySize(targetSize, targetSize);
                 this.dashboardContainer.add(sprite);
+                skillVisual = sprite;
             } else {
                 const txt = this.add.text(bx, by, sk.icon, { fontSize: '28px' }).setOrigin(0.5);
                 this.dashboardContainer.add(txt);
+                skillVisual = txt;
             }
 
             // CD Overlay
@@ -171,6 +182,13 @@ export default class UIScene extends Phaser.Scene {
             this.skillBars.push({ overlay: cdOverlay, text: cdText });
             this.skillButtons.push(bg);
             bg.on('pointerdown', () => this.triggerSkill(i));
+
+            // Track skill for placement testbed
+            this.placementElements[`skill_${i}_${sk.name}`] = {
+                objs: [bg, skillVisual, cdOverlay, cdText],
+                containerWorldX: w / 2, containerWorldY: dashboardY,
+                cdOverlayYOffset: sW / 2  // cdOverlay is offset by sW/2 below the skill center
+            };
         });
 
         // Apply initial visual state if AUTO is active
@@ -248,7 +266,29 @@ export default class UIScene extends Phaser.Scene {
 
             // Highlight selected (Skill by default maybe)
             if (i === 2) icon.setTint(0xffaa00);
+
+            // Track nav elements for placement testbed
+            // In testbed, icon world pos = (w/2 + relX, dashboardY + relNavY - 10)
+            // In testbed, label world pos = (w/2 + relX, dashboardY + relNavY + 25)
+            // Here icon is at (0, -10) inside btn at (relX, relNavY) inside dashboardContainer
+            this.placementElements[`nav_icon_${i}_${item.name}`] = {
+                obj: icon, btnContainer: btn,
+                containerWorldX: w / 2, containerWorldY: dashboardY,
+                btnRelX: relX, btnRelY: relNavY,
+                innerDefaultX: 0, innerDefaultY: -10,
+                type: 'nav'
+            };
+            this.placementElements[`nav_label_${i}_${item.name}`] = {
+                obj: label, btnContainer: btn,
+                containerWorldX: w / 2, containerWorldY: dashboardY,
+                btnRelX: relX, btnRelY: relNavY,
+                innerDefaultX: 0, innerDefaultY: 25,
+                type: 'nav'
+            };
         });
+
+        // ── Apply saved placement config from testbed ─────────────────────────
+        this.loadPlacementConfig();
 
         // Initial update
         if (this.stats) {
@@ -257,17 +297,20 @@ export default class UIScene extends Phaser.Scene {
     }
 
     createUpgradeRow(upg, x, y) {
+        const w = this.scale.width;
         const row = this.add.container(x, y);
         this.dashboardContainer.add(row);
 
         const level = this.stats[upg.id + 'Level'] || 1;
 
+        let iconImg = null;
+        let iconScale = 1;
         if (upg.icon) {
-            const icon = this.add.image(-295, 0, upg.icon).setOrigin(0.5);
+            iconImg = this.add.image(-295, 0, upg.icon).setOrigin(0.5);
             // Enlarged icon (80px)
-            const iconScale = 80 / Math.max(icon.width, icon.height);
-            icon.setScale(iconScale);
-            row.add(icon);
+            iconScale = 80 / Math.max(iconImg.width, iconImg.height);
+            iconImg.setScale(iconScale);
+            row.add(iconImg);
         }
 
         const labelX = -180;
@@ -308,6 +351,41 @@ export default class UIScene extends Phaser.Scene {
         buyBtn.on('pointerdown', () => this.buyUpgrade(upg.id));
         buyBtn.on('pointerover', () => { costText.setScale(1.1); });
         buyBtn.on('pointerout', () => { costText.setScale(1.0); });
+
+        // Track upgrade elements for placement testbed
+        // row container is at (x, y) inside dashboardContainer
+        // In testbed, icon world pos = (w/2 - 295, dashboardY + y)
+        const dashboardY = this.dashboardY;
+        if (iconImg) {
+            this.placementElements[`upg_icon_${upg.id}`] = {
+                obj: iconImg, rowContainer: row,
+                containerWorldX: w / 2, containerWorldY: dashboardY,
+                rowRelX: x, rowRelY: y,
+                innerDefaultX: -295, innerDefaultY: 0,
+                type: 'upgrade'
+            };
+        }
+        this.placementElements[`upg_title_${upg.id}`] = {
+            obj: title, rowContainer: row,
+            containerWorldX: w / 2, containerWorldY: dashboardY,
+            rowRelX: x, rowRelY: y,
+            innerDefaultX: labelX, innerDefaultY: -14,
+            type: 'upgrade'
+        };
+        this.placementElements[`upg_val_${upg.id}`] = {
+            obj: valText, rowContainer: row,
+            containerWorldX: w / 2, containerWorldY: dashboardY,
+            rowRelX: x, rowRelY: y,
+            innerDefaultX: labelX, innerDefaultY: 14,
+            type: 'upgrade'
+        };
+        this.placementElements[`upg_cost_${upg.id}`] = {
+            obj: costText, rowContainer: row,
+            containerWorldX: w / 2, containerWorldY: dashboardY,
+            rowRelX: x, rowRelY: y,
+            innerDefaultX: costX, innerDefaultY: 0,
+            type: 'upgrade'
+        };
     }
 
     buyUpgrade(id) {
@@ -980,6 +1058,69 @@ export default class UIScene extends Phaser.Scene {
             game.baseStats.emeralds = this.stats.emeralds;
             game.baseStats.stage = game.currentStage;
             SaveSystem.save(game.baseStats);
+        }
+    }
+
+    /**
+     * Load placement config from localStorage (saved by UIPlacementTestScene)
+     * and apply positions/scales to matching elements.
+     */
+    loadPlacementConfig() {
+        const raw = localStorage.getItem('ui_placement_config');
+        if (!raw) return;
+
+        try {
+            const data = JSON.parse(raw);
+            const w = this.scale.width;
+            const dashboardY = this.dashboardY;
+
+            Object.keys(data).forEach(id => {
+                const saved = data[id];
+                const el = this.placementElements[id];
+                if (!el) return;
+
+                if (el.type === 'nav') {
+                    // Nav elements are inside a btn container inside dashboardContainer
+                    // Testbed world pos = (containerWorldX + btnRelX + innerX, containerWorldY + btnRelY + innerY)
+                    // So innerX = savedWorldX - containerWorldX - btnRelX
+                    const innerX = saved.x - el.containerWorldX - el.btnRelX;
+                    const innerY = saved.y - el.containerWorldY - el.btnRelY;
+                    el.obj.setPosition(innerX, innerY);
+                    if (saved.scaleX !== undefined) el.obj.setScale(saved.scaleX, saved.scaleY);
+                } else if (el.type === 'upgrade') {
+                    // Upgrade elements are inside a row container inside dashboardContainer
+                    // Testbed world pos = (containerWorldX + rowRelX + innerX, containerWorldY + rowRelY + innerY)
+                    const innerX = saved.x - el.containerWorldX - el.rowRelX;
+                    const innerY = saved.y - el.containerWorldY - el.rowRelY;
+                    el.obj.setPosition(innerX, innerY);
+                    if (saved.scaleX !== undefined) el.obj.setScale(saved.scaleX, saved.scaleY);
+                } else if (el.objs) {
+                    // Direct dashboardContainer elements (skill_auto, skills)
+                    // Testbed world pos = (containerWorldX + relX, containerWorldY + relY)
+                    const relX = saved.x - el.containerWorldX;
+                    const relY = saved.y - el.containerWorldY;
+                    el.objs.forEach(obj => {
+                        if (obj && obj.setPosition) {
+                            obj.setPosition(relX, relY);
+                        }
+                    });
+                    // For skills with CD overlay, reposition it below the new center
+                    if (el.cdOverlayYOffset !== undefined && el.objs.length >= 3) {
+                        const cdOverlay = el.objs[2];
+                        if (cdOverlay && cdOverlay.setPosition) {
+                            cdOverlay.setPosition(relX, relY + el.cdOverlayYOffset);
+                        }
+                    }
+                    // Apply scale to visual element only (index 1) if present
+                    if (saved.scaleX !== undefined && el.objs[1]) {
+                        el.objs[1].setScale(saved.scaleX, saved.scaleY);
+                    }
+                }
+            });
+
+            console.log('UIScene: Applied placement config from testbed');
+        } catch (e) {
+            console.error('UIScene: Failed to load placement config:', e);
         }
     }
 }

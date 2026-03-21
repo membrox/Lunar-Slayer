@@ -256,21 +256,24 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         const w = this.scale.width;
         const panelY = 30;
 
-        // Semi-transparent background for panel
-        const panelBg = this.add.rectangle(w / 2, panelY + 50, w, 140, 0x000000, 0.85)
+        // Semi-transparent background for panel (taller to fit input row)
+        const panelBg = this.add.rectangle(w / 2, panelY + 70, w, 180, 0x000000, 0.85)
             .setDepth(100).setOrigin(0.5);
         this.controlUI.push(panelBg);
 
-        // Info
+        // Info (element name)
         this.infoText = this.add.text(w / 2, panelY, 'Click an element to select', {
             fontSize: '14px', fill: '#ffffff', fontFamily: 'Arial',
             align: 'center'
         }).setOrigin(0.5).setDepth(101);
         this.controlUI.push(this.infoText);
 
+        // ── Editable Input Fields (HTML DOM overlay) ─────────────────────────
+        this.buildInputFields();
+
         // Scale buttons row
         const btnStyle = { fontSize: '13px', fill: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold' };
-        const btnY = panelY + 35;
+        const btnY = panelY + 60;
 
         this.makeControlBtn(60, btnY, 'ScaleX -', btnStyle, () => this.adjustScale('x', -0.05));
         this.makeControlBtn(160, btnY, 'ScaleX +', btnStyle, () => this.adjustScale('x', 0.05));
@@ -286,7 +289,7 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         });
 
         // Save / Reset / Export row
-        const actionY = panelY + 75;
+        const actionY = panelY + 100;
         this.makeControlBtn(120, actionY, '💾 SAVE', { ...btnStyle, fill: '#00ff00' }, () => this.savePositions());
         this.makeControlBtn(300, actionY, '🔄 RESET', { ...btnStyle, fill: '#ff6600' }, () => this.resetPositions());
         this.makeControlBtn(500, actionY, '📋 COPY JSON', { ...btnStyle, fill: '#00ccff' }, () => this.exportJSON());
@@ -299,11 +302,148 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-ESC', () => {
             this.deselectAll();
         });
-        // Arrow keys for fine positioning
-        this.input.keyboard.on('keydown-LEFT', () => this.nudge(-1, 0));
-        this.input.keyboard.on('keydown-RIGHT', () => this.nudge(1, 0));
-        this.input.keyboard.on('keydown-UP', () => this.nudge(0, -1));
-        this.input.keyboard.on('keydown-DOWN', () => this.nudge(0, 1));
+        // Arrow keys for fine positioning (only when no input is focused)
+        this.input.keyboard.on('keydown-LEFT', () => {
+            if (!this.isInputFocused()) this.nudge(-1, 0);
+        });
+        this.input.keyboard.on('keydown-RIGHT', () => {
+            if (!this.isInputFocused()) this.nudge(1, 0);
+        });
+        this.input.keyboard.on('keydown-UP', () => {
+            if (!this.isInputFocused()) this.nudge(0, -1);
+        });
+        this.input.keyboard.on('keydown-DOWN', () => {
+            if (!this.isInputFocused()) this.nudge(0, 1);
+        });
+    }
+
+    /**
+     * Creates HTML input fields overlaid on top of the canvas for editing
+     * x, y, scaleX, scaleY values directly.
+     */
+    buildInputFields() {
+        const canvas = this.game.canvas;
+        const canvasRect = canvas.getBoundingClientRect();
+
+        // Container div for all inputs
+        this.inputContainer = document.createElement('div');
+        this.inputContainer.id = 'ui-placement-inputs';
+        this.inputContainer.style.cssText = `
+            position: absolute;
+            top: ${canvasRect.top + 20}px;
+            left: ${canvasRect.left}px;
+            width: ${canvasRect.width}px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        `;
+
+        const inputStyle = `
+            width: 60px;
+            padding: 3px 6px;
+            background: #222244;
+            border: 1px solid #6666aa;
+            border-radius: 3px;
+            color: #ffffff;
+            font-family: monospace;
+            font-size: 13px;
+            text-align: center;
+            pointer-events: auto;
+            outline: none;
+        `;
+
+        const labelStyle = `color: #aaaacc; font-size: 12px; pointer-events: none;`;
+
+        const fields = [
+            { id: 'x', label: 'X:', width: '65px' },
+            { id: 'y', label: 'Y:', width: '65px' },
+            { id: 'scaleX', label: 'ScaleX:', width: '65px' },
+            { id: 'scaleY', label: 'ScaleY:', width: '65px' }
+        ];
+
+        this.domInputs = {};
+
+        fields.forEach(f => {
+            const lbl = document.createElement('span');
+            lbl.textContent = f.label;
+            lbl.style.cssText = labelStyle;
+            this.inputContainer.appendChild(lbl);
+
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.style.cssText = inputStyle;
+            inp.style.width = f.width;
+            inp.disabled = true;
+            inp.placeholder = '-';
+
+            // Apply value on Enter
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.applyInputValue(f.id, inp.value);
+                    inp.blur();
+                }
+            });
+
+            // Focus style
+            inp.addEventListener('focus', () => {
+                inp.style.borderColor = '#00ffff';
+                inp.select();
+            });
+            inp.addEventListener('blur', () => {
+                inp.style.borderColor = '#6666aa';
+            });
+
+            this.inputContainer.appendChild(inp);
+            this.domInputs[f.id] = inp;
+        });
+
+        // Add to DOM
+        canvas.parentElement.style.position = 'relative';
+        canvas.parentElement.appendChild(this.inputContainer);
+
+        // Reposition on resize
+        this.scale.on('resize', () => {
+            const rect = this.game.canvas.getBoundingClientRect();
+            this.inputContainer.style.top = `${rect.top + 20}px`;
+            this.inputContainer.style.left = `${rect.left}px`;
+            this.inputContainer.style.width = `${rect.width}px`;
+        });
+
+        // Cleanup on scene shutdown
+        this.events.on('shutdown', () => this.destroyInputFields());
+        this.events.on('destroy', () => this.destroyInputFields());
+    }
+
+    destroyInputFields() {
+        if (this.inputContainer && this.inputContainer.parentElement) {
+            this.inputContainer.parentElement.removeChild(this.inputContainer);
+        }
+    }
+
+    isInputFocused() {
+        if (!this.domInputs) return false;
+        return Object.values(this.domInputs).some(inp => document.activeElement === inp);
+    }
+
+    applyInputValue(field, rawValue) {
+        if (!this.selectedElement) return;
+        const val = parseFloat(rawValue);
+        if (isNaN(val)) return;
+
+        const o = this.selectedElement.obj;
+        switch (field) {
+            case 'x': o.x = Math.round(val); break;
+            case 'y': o.y = Math.round(val); break;
+            case 'scaleX': o.scaleX = Math.max(0.05, val); break;
+            case 'scaleY': o.scaleY = Math.max(0.05, val); break;
+        }
+        this.updateInfoPanel();
     }
 
     makeControlBtn(x, y, label, style, callback) {
@@ -354,13 +494,30 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         if (!this.infoText) return;
         if (!this.selectedElement) {
             this.infoText.setText('Click an element to select | TAB=cycle | Arrows=nudge | Scroll=scale');
+            // Disable and clear inputs
+            if (this.domInputs) {
+                Object.values(this.domInputs).forEach(inp => {
+                    inp.value = '';
+                    inp.disabled = true;
+                    inp.placeholder = '-';
+                });
+            }
             return;
         }
         const el = this.selectedElement;
         const o = el.obj;
-        this.infoText.setText(
-            `${el.id}  |  x: ${Math.round(o.x)}  y: ${Math.round(o.y)}  |  scaleX: ${o.scaleX.toFixed(2)}  scaleY: ${o.scaleY.toFixed(2)}`
-        );
+        this.infoText.setText(`${el.id}`);
+
+        // Update input fields with current values
+        if (this.domInputs) {
+            this.domInputs.x.value = Math.round(o.x);
+            this.domInputs.y.value = Math.round(o.y);
+            this.domInputs.scaleX.value = o.scaleX.toFixed(2);
+            this.domInputs.scaleY.value = o.scaleY.toFixed(2);
+            Object.values(this.domInputs).forEach(inp => {
+                inp.disabled = false;
+            });
+        }
     }
 
     // ── Save / Load / Reset ──────────────────────────────────────────────────
