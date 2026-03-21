@@ -41,9 +41,12 @@ export default class BootScene extends Phaser.Scene {
             this.loadingText.setText(`${Math.floor(value * 100)}%`);
         });
 
-        // Load Mage Sprites as raw images with leading slashes for Vite
-        this.load.image('mage_raw_1', '/mage_sheet_1.png');
-        this.load.image('mage_raw_2', '/mage_sheet_2.png');
+        // Load Player Spritesheet
+        this.load.spritesheet('player_sheet', '/Player.png', {
+            frameWidth: 104,
+            frameHeight: 192
+        });
+
         this.load.image('game_bg', '/Background1.png');
         this.load.image('testzauber_raw', '/testzauber1.png');
 
@@ -68,9 +71,46 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
-        // Process transparency for Mage Sprites
-        this.makeTransparent('mage_raw_1', 'mage_sheet_1', 192, 256);
-        this.makeTransparent('mage_raw_2', 'mage_sheet_2', 256, 256);
+        // Define Animations
+        // Male (Row 3, Indices 26-38)
+        this.anims.create({
+            key: 'male_idle',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 26, end: 29 }),
+            frameRate: 6,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'male_run',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 30, end: 35 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'male_death',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 36, end: 38 }),
+            frameRate: 6,
+            repeat: 0
+        });
+
+        // Female (Row 4, Indices 39-51)
+        this.anims.create({
+            key: 'female_idle',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 39, end: 42 }),
+            frameRate: 6,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'female_run',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 43, end: 48 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'female_death',
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 49, end: 51 }),
+            frameRate: 6,
+            repeat: 0
+        });
         
         // Process Skill Spritesheet (3 frames horizontal)
         this.makeSkillSheet('testzauber_raw', 'skill_sheet');
@@ -87,30 +127,6 @@ export default class BootScene extends Phaser.Scene {
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.scene.start('MenuScene');
         });
-    }
-
-    makeTransparent(sourceKey, targetKey, frameW, frameH) {
-        const source = this.textures.get(sourceKey).getSourceImage();
-        const canvas = document.createElement('canvas');
-        canvas.width = source.width;
-        canvas.height = source.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(source, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            // Treat almost-black or very dark grey (grid) as transparent
-            if (r < 30 && g < 30 && b < 30) {
-                data[i + 3] = 0;
-            }
-        }
-        ctx.putImageData(imageData, 0, 0);
-        this.textures.addSpriteSheet(targetKey, canvas, { frameWidth: frameW, frameHeight: frameH });
     }
 
     makeShieldSheet(sourceKey, targetKey, frames) {

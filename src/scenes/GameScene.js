@@ -1,4 +1,4 @@
-import { drawPlayerOnGraphics, drawSwordOnGraphics, drawEnemyOnGraphics } from '../utils/DrawHelpers.js';
+import { drawEnemyOnGraphics } from '../utils/DrawHelpers.js';
 import { SaveSystem } from '../utils/SaveSystem.js';
 import { EquipmentManager } from '../utils/EquipmentManager.js';
 
@@ -20,12 +20,11 @@ export default class GameScene extends Phaser.Scene {
         if (!data) data = {};
         this.currentStage = Number(data.stage) || 1;
         
-        // Use provided baseStats or load from SaveSystem
         const s = data.baseStats || SaveSystem.load();
         
         this.baseStats = {
-            hp: Number(s.hp) || 100,
-            maxHp: Number(s.maxHp) || 100,
+            hp: Number(s.hp) || 120,
+            maxHp: Number(s.maxHp) || 120,
             mana: Number(s.mana) || 100,
             maxMana: Number(s.maxMana) || 100,
             attack: Number(s.attack) || 15,
@@ -33,8 +32,7 @@ export default class GameScene extends Phaser.Scene {
             speed: Number(s.speed) || 200,
             gold: Math.floor(Number(s.gold) || 0),
             autoAttackSpeed: Number(s.autoAttackSpeed) || 800,
-            className: s.className || 'Krieger',
-            classIndex: Number(s.classIndex) ?? 0,
+            selectedGender: s.selectedGender || 'male',
             damageLevel: Number(s.damageLevel) || 1,
             hpLevel: Number(s.hpLevel) || 1,
             hpRegenLevel: Number(s.hpRegenLevel) || 1,
@@ -47,11 +45,9 @@ export default class GameScene extends Phaser.Scene {
             maxStage: Number(s.maxStage) || Math.max(Number(s.stage) || 1, this.currentStage)
         };
 
-        // Derived stats for active gameplay
         this.playerStats = JSON.parse(JSON.stringify(this.baseStats));
-        
         this.equipment = new EquipmentManager();
-        this.applyEquipmentStats(true); // This populates playerStats from baseStats
+        this.applyEquipmentStats(true);
     }
 
     create() {
@@ -68,42 +64,21 @@ export default class GameScene extends Phaser.Scene {
         this.maxSimultaneousEnemies = Math.min(3, 1 + Math.floor(this.currentStage / 2));
         this.activeEnemies = 0;
         this.spawnedEnemyCount = 0;
-        this.worldScroll = 0; // Cumulative world distance
+        this.worldScroll = 0;
         this.isWalking = false;
 
-        // Stage scaling
         const s = this.currentStage;
         this.enemyHpScale = 1 + (s - 1) * 0.4;
         this.enemyAtkScale = 1 + (s - 1) * 0.3;
 
-        this.groundY = 522; // Aligned with the path in a 580px high window
-
-        // Ensure animations are created BEFORE sprites use them
-        if (!this.anims.exists('mage_idle')) {
-            this.anims.create({
-                key: 'mage_idle',
-                frames: this.anims.generateFrameNumbers('mage_sheet_2', { start: 0, end: 3 }),
-                frameRate: 6,
-                repeat: -1
-            });
-        }
-        if (!this.anims.exists('mage_attack')) {
-            this.anims.create({
-                key: 'mage_attack',
-                frames: this.anims.generateFrameNumbers('mage_sheet_1', { start: 0, end: 7 }),
-                frameRate: 15,
-                repeat: 0
-            });
-        }
+        this.groundY = 522;
 
         this.buildWorld();
 
-        // Camera - Action area focus (Screen Y = World Y)
         this.cameras.main.setBounds(0, 0, w * 10, h);
         this.cameras.main.setScroll(0, 0); 
         this.cameras.main.fadeIn(600, 0, 0, 0);
 
-        // Mana regen
         this.time.addEvent({
             delay: 800, loop: true,
             callback: () => {
@@ -112,14 +87,12 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        // Launch UI
         this.scene.launch('UIScene', {
             playerStats: this.playerStats,
             stage: this.currentStage,
             onSkill: (i) => this.castSkill(i)
         });
 
-        // Keyboard skills - route through UIScene for cooldown check
         this.input.keyboard.on('keydown-ONE', () => {
             const ui = this.scene.get('UIScene');
             if (ui && ui.triggerSkill) ui.triggerSkill(0);
@@ -137,19 +110,15 @@ export default class GameScene extends Phaser.Scene {
             if (ui && ui.triggerSkill) ui.triggerSkill(3);
         });
 
-        // Mage Animations
         this.spawnEnemiesIfNeeded();
     }
-
-    // ─── World ────────────────────────────────────────────────────────────────
 
     buildWorld() {
         const w = this.scale.width;
         const h = this.scale.height;
-        const classIndex = this.playerStats.classIndex ?? 0;
+        const gender = this.playerStats.selectedGender || 'male';
         const bgAsset = this.textures.get('game_bg') ? this.textures.get('game_bg').getSourceImage() : null;
 
-        // ── New Visual Background (TileSprite for scrolling) ──────────────────
         const battleH = 580;
         let visualScale = 1;
         if (bgAsset && bgAsset.height) {
@@ -160,54 +129,30 @@ export default class GameScene extends Phaser.Scene {
         }
         this.bg.setScale(visualScale).setAlpha(1);
 
-        // ── Physics ground ────────────────────────────────────────────────────
         this.physics.world.gravity.y = 800;
         this.platforms = this.physics.add.staticGroup();
         const groundPhys = this.add.rectangle(w / 2, this.groundY + 20, w * 10, 40, 0x000000, 0); 
         this.physics.add.existing(groundPhys, true);
         this.platforms.add(groundPhys);
 
-        // Prepare Parallax Layers
-        this.parallaxLayers = [
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 0.05, type: 'stars' },
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 0.1, type: 'mtnFar' },
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 0.25, type: 'mtnNear' },
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 0.45, type: 'treesBack' },
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 0.75, type: 'treesFront' },
-            { gfx: this.add.graphics().setScrollFactor(0), speed: 1.0, type: 'ground' }
-        ];
+        this.parallaxLayers = [];
 
-        this.initParallax();
-
-        // ── Player ────────────────────────────────────────────────────────────
-        // Container so graphics + physics body move together
         const px = w / 2;
         const py = this.groundY - 34;
 
         this.playerContainer = this.add.container(px, py);
         
-        if (classIndex === 1) {
-            this.playerSprite = this.add.sprite(0, 0, 'mage_sheet_2').setScale(0.4).setOrigin(0.5, 0.5);
-            this.playerSprite.play('mage_idle');
-            this.playerContainer.add(this.playerSprite);
-            this.playerGfx = this.add.graphics().setVisible(false);
-            this.weaponGfx = this.add.graphics().setVisible(false);
-        } else {
-            this.playerGfx = this.add.graphics();
-            drawPlayerOnGraphics(this.playerGfx, 0, 0, classIndex);
-            this.weaponGfx = this.add.graphics();
-            drawSwordOnGraphics(this.weaponGfx, 30, 0, classIndex);
-            this.playerContainer.add([this.playerGfx, this.weaponGfx]);
-        }
+        // New Player Sprite logic
+        this.playerSprite = this.add.sprite(0, -50, 'player_sheet').setScale(0.85).setOrigin(0.5, 0.5);
+        this.playerSprite.play(`${gender}_idle`);
+        this.playerContainer.add(this.playerSprite);
 
-        // ── Player Health Bar (Mini) ──────────────────────────────────────────
         this.playerHpBar = this.add.graphics();
         this.playerContainer.add(this.playerHpBar);
-        this.playerHpBar.setPosition(0, 45); // Below player
+        this.playerHpBar.setPosition(0, 45); 
 
         this.updateEquipmentVisuals();
 
-        // Physics on invisible rectangle
         this.playerPhysics = this.add.rectangle(px, py, 36, 68, 0x000000, 0);
         this.physics.add.existing(this.playerPhysics);
         this.playerPhysics.body.setCollideWorldBounds(true);
@@ -217,11 +162,8 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.playerPhysics, this.platforms);
 
         this.playerContainer.setDepth(100);
-
-        // Camera Follow
         this.cameras.main.startFollow(this.playerPhysics, true, 0.1, 0, -200, 0); 
 
-        // Stage label
         const stageLabel = this.add.text(w / 2, h / 2, `STAGE ${this.currentStage}`, {
             fontSize: '52px', fill: '#FFD700', fontFamily: 'Arial',
             fontStyle: 'bold', stroke: '#000', strokeThickness: 7, alpha: 0
@@ -408,8 +350,6 @@ export default class GameScene extends Phaser.Scene {
     // ─── Skills ───────────────────────────────────────────────────────────────
 
     castSkill(index) {
-        const classIndex = this.playerStats.classIndex ?? 0;
-        // Warrior, Mage, Ranger each get slightly different skill names but same indices
         const skills = [
             { cost: 25, dmgMult: 2.5, range: 320, name: 'fire' },
             { cost: 30, dmgMult: 2.0, range: 260, name: 'ice', slow: true },
@@ -432,7 +372,6 @@ export default class GameScene extends Phaser.Scene {
             return true;
         }
 
-        // Spawn skill visual then hit enemies
         this.spawnSkillEffect(skill.name, px, py, skill.range, (e) => {
             const dmg = Math.floor(this.playerStats.attack * skill.dmgMult);
             this.dealDamage(e, dmg, skill.slow);
@@ -741,51 +680,47 @@ export default class GameScene extends Phaser.Scene {
     // ─── Update Loop ──────────────────────────────────────────────────────────
 
     update(time, delta) {
+        if (this.gameOver) return;
+
         try {
-            if (this.gameOver || this.stageComplete) return;
-
-            // Update scrolling background
-            if (this.bg && this.isWalking) {
-                this.bg.tilePositionX += (this.playerStats.speed * delta / 1000) * 0.8;
+            // HP Regen
+            if (this.playerStats.hp < this.playerStats.maxHp) {
+                const regen = (this.playerStats.hpRegen || 0) * (delta / 1000);
+                this.playerStats.hp = Math.min(this.playerStats.maxHp, this.playerStats.hp + regen);
             }
 
-            // Ensure enemies continue to spawn
-            this.spawnEnemiesIfNeeded();
-
-            const px = this.playerPhysics ? this.playerPhysics.x : this.scale.width / 2;
-            const py = this.playerPhysics ? this.playerPhysics.y : this.groundY - 34;
-
-            // Sync player container position with physics rect
-            if (this.playerContainer && this.playerPhysics) {
-                this.playerContainer.setPosition(px, py);
+            // Stage completion check
+            if (this.enemiesKilled >= this.totalEnemies && !this.bossSpawned) {
+                this.spawnBoss();
             }
 
-            // Find nearest alive enemy using physics positions
+            const px = this.playerPhysics.x;
+            const py = this.playerPhysics.y;
+
+            // Simple "AI" - find nearest alive enemy
+            const aliveEnemies = this.enemyList.filter(e => e.getData('alive'));
             let nearest = null;
-            let nearestDist = 99999;
-            this.enemyList.forEach(e => {
-                if (!e || !e.getData || !e.getData('alive') || !e.active) return;
-                const pr = e.getData('physRect');
-                if (pr && pr.active) {
-                    const d = Math.abs(px - pr.x);
-                    if (d < nearestDist) {
-                        nearestDist = d;
-                        nearest = e;
-                    }
+            let nearestDist = 9999;
+
+            aliveEnemies.forEach(e => {
+                const dist = Math.abs(e.x - px);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = e;
                 }
             });
 
-            // Engagement distance
-            const playerReach = (nearest && nearest.getData('isBoss')) ? 265 : 235;
-            const enemyReach = (nearest && nearest.getData('isBoss')) ? 215 : 190;
+            const playerReach = 180;
+            const enemyReach = 150;
 
             if (nearest && nearestDist < playerReach) {
+                // Stop to fight
                 if (this.isWalking) {
-                    this.autoAttackTimer = 0;
-                }
-                this.isWalking = false;
-                if (this.playerPhysics && this.playerPhysics.body) {
-                    this.playerPhysics.body.setVelocityX(0);
+                    this.isWalking = false;
+                    if (this.playerPhysics.body) this.playerPhysics.body.setVelocityX(0);
+                    if (this.playerSprite && this.playerSprite.active) {
+                        this.playerSprite.play(`${this.playerStats.selectedGender}_idle`, true);
+                    }
                 }
 
                 // Player Auto attack
@@ -794,15 +729,6 @@ export default class GameScene extends Phaser.Scene {
                     const baseDmg = this.playerStats.attack + Phaser.Math.Between(-2, 5);
                     this.dealDamage(nearest, baseDmg);
                     this.autoAttackTimer = this.playerStats.autoAttackSpeed;
-
-                    // Weapon swing animation
-                    if (this.weaponGfx && this.weaponGfx.active) {
-                        this.tweens.add({
-                            targets: this.weaponGfx,
-                            angle: { from: -30, to: 30 },
-                            duration: 120, yoyo: true, ease: 'Sine.InOut'
-                        });
-                    }
                 }
 
                 // Enemy attacks
@@ -812,21 +738,10 @@ export default class GameScene extends Phaser.Scene {
                     if (timer <= 0) {
                         const dmg = Math.floor(nearest.getData('attack') || 1);
                         this.playerStats.hp = Math.floor(Math.max(0, this.playerStats.hp - dmg));
-                        
                         if (isNaN(this.playerStats.hp)) this.playerStats.hp = 1;
                         
-                        // Enemy lunge animation
-                        this.tweens.add({
-                            targets: nearest,
-                            x: nearest.x - 30,
-                            duration: 100,
-                            yoyo: true,
-                            ease: 'Back.Out'
-                        });
-
                         this.cameras.main.shake(100, 0.004);
                         this.showDamageNumber(px, py - 40, `-${Math.floor(dmg)}`, '#ff3333', 20);
-
                         timer = nearest.getData('attackSpeed') || 1200;
 
                         if (this.playerStats.hp <= 0) {
@@ -836,86 +751,84 @@ export default class GameScene extends Phaser.Scene {
                     nearest.setData('attackTimer', timer);
                 }
             } else {
-                this.isWalking = true;
+                // Nothing in reach, walk forward
+                if (!this.isWalking) {
+                    this.isWalking = true;
+                    if (this.playerSprite && this.playerSprite.active) {
+                        this.playerSprite.play(`${this.playerStats.selectedGender}_run`, true);
+                    }
+                }
+                if (this.playerPhysics.body) {
+                    this.playerPhysics.body.setVelocityX(this.playerStats.speed);
+                }
             }
 
-            // Apply scrolling logic via velocities
-            this.enemyList.forEach(e => {
-                if (!e || !e.getData) return;
-                const pr = e.getData('physRect');
-                if (pr && pr.active && e.getData('alive')) {
-                    const baseSpeed = e.getData('baseSpeed') || 75;
-                    const isBoss = e.getData('isBoss');
-                    const reach = isBoss ? 215 : 190;
-                    const dist = Math.abs(px - pr.x);
+            // Sync parallax/scrolling
+            if (this.isWalking && this.bg) {
+                this.bg.tilePositionX += (this.playerStats.speed * delta / 1000) * 0.8;
+            }
 
+            // Sync enemy containers to physics
+            this.enemyList.forEach(e => {
+                if (!e || !e.getData || !e.getData('alive')) return;
+                const pr = e.getData('physRect');
+                if (pr && pr.active) {
+                    e.setPosition(pr.x, pr.y);
+                    const baseSpeed = e.getData('baseSpeed') || 75;
+                    const reach = e.getData('isBoss') ? 215 : 190;
+                    const dist = Math.abs(px - pr.x);
                     const enemySelfSpeed = (dist > reach) ? baseSpeed : 0;
-                    const targetVx = this.isWalking ? -(enemySelfSpeed + (this.playerStats.speed || 0)) : -enemySelfSpeed;
+                    const targetVx = this.isWalking ? -(enemySelfSpeed + this.playerStats.speed) : -enemySelfSpeed;
                     if (pr.body) pr.body.setVelocityX(targetVx);
                 }
             });
 
-            if (this.isWalking) {
-                const scrollSpeed = (this.playerStats.speed || 0) * (delta / 1000);
-                this.worldScroll += scrollSpeed;
-                this.updateParallax(scrollSpeed);
-            }
-
-            // Sync enemy containers to their physRect
-            this.enemyList.forEach(e => {
-                if (!e || !e.getData || !e.getData('alive') || !e.active) return;
-                const pr = e.getData('physRect');
-                if (pr && pr.active) {
-                    e.setPosition(pr.x, pr.y);
-                }
-            });
+            // Sync player container to physics
+            this.playerContainer.setPosition(this.playerPhysics.x, this.playerPhysics.y);
 
             // Update UI
             const uiScene = this.scene.get('UIScene');
-            if (uiScene && uiScene.scene.isActive() && uiScene.updateStats) {
+            if (uiScene && uiScene.scene.isActive()) {
                 uiScene.updateStats(this.playerStats, this.currentStage, this.enemiesKilled, this.totalEnemies);
             }
 
             // Update Player Mini HP Bar
             if (this.playerHpBar) {
                 const barW = 60;
-                const barH = 6;
                 const ratio = Math.max(0, this.playerStats.hp / this.playerStats.maxHp);
                 this.playerHpBar.clear();
-                // BG
                 this.playerHpBar.fillStyle(0x000000, 0.5);
-                this.playerHpBar.fillRect(-barW / 2, 0, barW, barH);
-                // Fill
+                this.playerHpBar.fillRect(-barW / 2, 0, barW, 6);
                 this.playerHpBar.fillStyle(0x00ff00, 1);
-                this.playerHpBar.fillRect(-barW / 2, 0, barW * ratio, barH);
+                this.playerHpBar.fillRect(-barW / 2, 0, barW * ratio, 6);
             }
+
         } catch (err) {
-            console.error('GameScene Update Error:', err);
+            console.error('Update Loop Error:', err);
         }
     }
 
     triggerStageReset() {
         if (this.gameOver) return;
         this.gameOver = true;
-        this.playerPhysics.body.setVelocityX(0);
+        this.isWalking = false;
+        if (this.playerPhysics.body) this.playerPhysics.body.setVelocityX(0);
+
+        // Play Death Animation
+        if (this.playerSprite && this.playerSprite.active) {
+            this.playerSprite.play(`${this.playerStats.selectedGender}_death`, true);
+        }
+
         this.cameras.main.shake(600, 0.015);
         this.cameras.main.flash(500, 255, 0, 0);
 
-        // Death particles
-        this.spawnExplosion(this.playerPhysics.x, this.playerPhysics.y, 0xff0000);
-
-        // Notify UI of death (optional, just for visual parity)
-        this.showDamageNumber(this.playerPhysics.x, this.playerPhysics.y - 60, 'Stage Reset...', '#ffff00', 30);
-
-        // Automatic Restart after short delay
-        this.time.delayedCall(1200, () => {
+        this.time.delayedCall(1500, () => {
             this.scene.stop('UIScene');
             this.cameras.main.fadeOut(400, 0, 0, 0);
             this.cameras.main.once('camerafadeoutcomplete', () => {
-                // Keep XP, Level, Gold - stats are updated in updateStats call before
                 this.scene.start('GameScene', {
                     stage: this.currentStage,
-                    playerStats: this.playerStats
+                    baseStats: this.baseStats
                 });
             });
         });
@@ -996,16 +909,10 @@ export default class GameScene extends Phaser.Scene {
 
     updateEquipmentVisuals() {
         if (!this.equipment || !this.playerContainer) return;
-        
         const eq = this.equipment.equipped;
-        
-        // Weapon Visuals based on class or item icon
-        // (Removing hat/armor text layers as per user request)
-
-        // Update Weapon Visuals
         if (eq.weapon) {
             if (!this.weaponSpriteLayer) {
-                this.weaponSpriteLayer = this.add.text(30, -5, '', { fontSize: '32px' }).setOrigin(0.5);
+                this.weaponSpriteLayer = this.add.text(30, -50, eq.weapon.icon, { fontSize: '32px' }).setOrigin(0.5);
                 this.playerContainer.add(this.weaponSpriteLayer);
             }
             this.weaponSpriteLayer.setText(eq.weapon.icon).setVisible(true);

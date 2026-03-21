@@ -3,13 +3,12 @@ export class SaveSystem {
 
     static getDefaultStats() {
         return {
-            hp: 100, maxHp: 100,
+            hp: 120, maxHp: 120,
             mana: 100, maxMana: 100,
             attack: 15, defense: 3,
             speed: 200, gold: 0,
             autoAttackSpeed: 800,
-            className: 'Mage',
-            classIndex: 1,
+            selectedGender: 'male',
             damageLevel: 1,
             hpLevel: 1,
             hpRegenLevel: 1,
