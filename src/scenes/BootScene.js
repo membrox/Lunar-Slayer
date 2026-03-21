@@ -42,8 +42,12 @@ export default class BootScene extends Phaser.Scene {
         });
 
         // Load Player Spritesheet
-        this.load.spritesheet('player_sheet', '/Player.png', {
+        this.load.spritesheet('player_sheet_male', '/Player.png', {
             frameWidth: 105,
+            frameHeight: 192
+        });
+        this.load.spritesheet('player_sheet_female', '/Player.png', {
+            frameWidth: 114,
             frameHeight: 192
         });
 
@@ -75,40 +79,44 @@ export default class BootScene extends Phaser.Scene {
         // Male (Row 3, Indices 26-38)
         this.anims.create({
             key: 'male_idle',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 26, end: 29 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 26, end: 29 }),
             frameRate: 6,
             repeat: -1
         });
+        
         this.anims.create({
             key: 'male_run',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 30, end: 35 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 30, end: 37 }),
             frameRate: 10,
             repeat: -1
         });
+
         this.anims.create({
             key: 'male_death',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 36, end: 38 }),
-            frameRate: 6,
+            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 38, end: 38 }),
+            frameRate: 1,
             repeat: 0
         });
 
         // Female (Row 4, Indices 39-51)
         this.anims.create({
             key: 'female_idle',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 39, end: 42 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 36, end: 39 }),
             frameRate: 6,
             repeat: -1
         });
+        
         this.anims.create({
             key: 'female_run',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 43, end: 48 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 40, end: 46 }),
             frameRate: 10,
             repeat: -1
         });
+
         this.anims.create({
             key: 'female_death',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 49, end: 51 }),
-            frameRate: 6,
+            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 47, end: 47 }),
+            frameRate: 1,
             repeat: 0
         });
         

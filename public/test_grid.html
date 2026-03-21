@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>body { background: #333; margin: 0; padding: 20px; }</style>
+</head>
+<body>
+<canvas id="c" width="1376" height="768" style="border:1px solid white;"></canvas>
+<script>
+  const img = new Image();
+  img.src = '/Player.png'; 
+  img.onload = () => {
+    const ctx = document.getElementById('c').getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    
+    // Draw horizontal row lines (height 192)
+    ctx.strokeStyle = 'white';
+    for(let y=0; y<=4; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * 192);
+        ctx.lineTo(1376, y * 192);
+        ctx.stroke();
+    }
+
+    const drawGrid = (stride, color, startY, height) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        for(let i=0; i<=16; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * stride, startY);
+          ctx.lineTo(i * stride, startY + height);
+          ctx.stroke();
+          ctx.fillStyle = color;
+          ctx.font = '12px Arial';
+          ctx.fillText(stride + 'px', i * stride + 2, startY + 12);
+        }
+    };
+    
+    // Male row starts at 384
+    drawGrid(103, 'yellow', 384, 40);
+    drawGrid(104, 'lime', 424, 40);
+    drawGrid(105, 'cyan', 464, 40);
+    drawGrid(106, 'magenta', 504, 40);
+    drawGrid(114, 'orange', 544, 40); // 1376 / 12 ~ 114
+    
+    // Just in case it's 86px (16 cols)
+    drawGrid(86, 'red', 584, 184); // Female row
+  };
+</script>
+</body>
+</html>

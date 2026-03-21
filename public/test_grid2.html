@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>body { background: #333; margin: 0; padding: 20px; }</style>
+</head>
+<body>
+<canvas id="c" width="1376" height="768" style="border:1px solid white;"></canvas>
+<script>
+  const img = new Image();
+  img.src = '/Player.png'; 
+  img.onload = () => {
+    const ctx = document.getElementById('c').getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    
+    // Draw horizontal row lines (height 192)
+    ctx.strokeStyle = 'white';
+    for(let y=0; y<=4; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * 192);
+        ctx.lineTo(1376, y * 192);
+        ctx.stroke();
+    }
+
+    const drawGrid = (stride, color, startY, height) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        for(let i=0; i<=16; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * stride, startY);
+          ctx.lineTo(i * stride, startY + height);
+          ctx.stroke();
+          ctx.fillStyle = color;
+          ctx.font = '12px Arial';
+          ctx.fillText(stride + 'px', i * stride + 2, startY + 12);
+        }
+    };
+    
+    // Female row starts at 576
+    drawGrid(113, 'yellow', 576, 40);
+    drawGrid(114, 'lime', 616, 40);
+    drawGrid(114.6, 'cyan', 656, 40);
+    drawGrid(115, 'magenta', 696, 40);
+    
+    // One more
+    drawGrid(105.84, 'orange', 736, 32); 
+  };
+</script>
+</body>
+</html>
