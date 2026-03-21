@@ -86,7 +86,7 @@ export default class BootScene extends Phaser.Scene {
         
         this.anims.create({
             key: 'male_run',
-            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 30, end: 37 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 30, end: 36 }),
             frameRate: 10,
             repeat: -1
         });
@@ -98,7 +98,8 @@ export default class BootScene extends Phaser.Scene {
             repeat: 0
         });
 
-        // Female (Row 4, Indices 39-51)
+        // ── Female Animations ──────────────────────────────────────────────────
+        // Female (Row 4, Indices 36-47 in 12-col grid)
         this.anims.create({
             key: 'female_idle',
             frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 36, end: 39 }),
@@ -108,7 +109,7 @@ export default class BootScene extends Phaser.Scene {
         
         this.anims.create({
             key: 'female_run',
-            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 40, end: 46 }),
+            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 40, end: 45 }),
             frameRate: 10,
             repeat: -1
         });
