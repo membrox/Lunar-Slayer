@@ -113,10 +113,20 @@ export default class UIScene extends Phaser.Scene {
 
         const autoIconGfx = this.add.graphics();
         autoIconGfx.lineStyle(4, 0xffffff);
-        autoIconGfx.arc(autoX, relSkillY, 24, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(280));
+        // Draw arc centered at (0,0) then position the graphics object
+        autoIconGfx.arc(0, 0, 18, Phaser.Math.DegToRad(30), Phaser.Math.DegToRad(310));
         autoIconGfx.strokePath();
         autoIconGfx.fillStyle(0xffffff);
-        autoIconGfx.fillTriangle(autoX + 24, relSkillY, autoX + 16, relSkillY - 10, autoX + 32, relSkillY - 10);
+        // Arrow at the end of the arc (pointing clockwise)
+        const arrowAngle = Phaser.Math.DegToRad(310);
+        const arrowX = Math.cos(arrowAngle) * 18;
+        const arrowY = Math.sin(arrowAngle) * 18;
+        autoIconGfx.fillTriangle(
+            arrowX, arrowY,
+            arrowX - 10, arrowY + 2,
+            arrowX - 3, arrowY + 10
+        );
+        autoIconGfx.setPosition(autoX, relSkillY);
 
         this.dashboardContainer.add([this.autoToggleBtn, autoIconGfx]);
 
@@ -143,8 +153,10 @@ export default class UIScene extends Phaser.Scene {
 
             if (sk.sprite) {
                 const sprite = this.add.sprite(bx, by, sk.sprite, sk.frame).setOrigin(0.5);
-                const scale = (sW - 20) / Math.max(sprite.width, sprite.height);
-                sprite.setScale(scale);
+                // The skill sheet frames are very tall (1024px) but content is small,
+                // so use a fixed display size that fits within the button circle
+                const targetSize = sW - 30;
+                sprite.setDisplaySize(targetSize, targetSize);
                 this.dashboardContainer.add(sprite);
             } else {
                 const txt = this.add.text(bx, by, sk.icon, { fontSize: '28px' }).setOrigin(0.5);

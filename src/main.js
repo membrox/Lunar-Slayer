@@ -4,8 +4,17 @@ import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
 import UIScene from './scenes/UIScene.js';
 import AnimTestScene from './scenes/AnimTestScene.js';
+import UIPlacementTestScene from './scenes/UIPlacementTestScene.js';
 
-const isTestbed = new URLSearchParams(window.location.search).has('testbed');
+const params = new URLSearchParams(window.location.search);
+const isTestbed = params.has('testbed');
+const isUITestbed = params.has('uitestbed');
+
+function getScenes() {
+  if (isUITestbed) return [BootScene, UIPlacementTestScene];
+  if (isTestbed) return [BootScene, AnimTestScene];
+  return [BootScene, MenuScene, GameScene, UIScene];
+}
 
 const config = {
   type: Phaser.AUTO,
@@ -22,9 +31,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: isTestbed
-    ? [BootScene, AnimTestScene]
-    : [BootScene, MenuScene, GameScene, UIScene]
+  scene: getScenes()
 };
 
 const game = new Phaser.Game(config);

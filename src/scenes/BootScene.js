@@ -128,9 +128,10 @@ export default class BootScene extends Phaser.Scene {
         this.makeShieldSheet('shield_myth_raw', 'shield_myth', 1);
         this.makeShieldSheet('shield_legendary_raw', 'shield_legendary', 5);
 
-        const targetScene = new URLSearchParams(window.location.search).has('testbed')
-            ? 'AnimTestScene'
-            : 'MenuScene';
+        const params = new URLSearchParams(window.location.search);
+        let targetScene = 'MenuScene';
+        if (params.has('uitestbed')) targetScene = 'UIPlacementTestScene';
+        else if (params.has('testbed')) targetScene = 'AnimTestScene';
 
         this.cameras.main.fadeOut(300, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
