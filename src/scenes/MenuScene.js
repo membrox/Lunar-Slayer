@@ -73,7 +73,7 @@ export default class MenuScene extends Phaser.Scene {
             this.genderCards.push(bg);
 
             // Sprite Preview
-            const preview = this.add.sprite(cx - 240, cy, 'player_sheet_' + g.id).setScale(0.8);
+            const preview = this.add.sprite(cx - 240, cy, 'player_sheet').setScale(0.8);
             preview.play(g.anim);
 
             // Name

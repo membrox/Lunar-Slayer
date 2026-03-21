@@ -41,14 +41,10 @@ export default class BootScene extends Phaser.Scene {
             this.loadingText.setText(`${Math.floor(value * 100)}%`);
         });
 
-        // Load Player Spritesheet
-        this.load.spritesheet('player_sheet_male', '/Player.png', {
-            frameWidth: 105,
-            frameHeight: 192
-        });
-        this.load.spritesheet('player_sheet_female', '/Player.png', {
-            frameWidth: 114,
-            frameHeight: 192
+        // Load Player Spritesheet (normalized: uniform 134x165 cells)
+        this.load.spritesheet('player_sheet', '/Player_normalized.png', {
+            frameWidth: 134,
+            frameHeight: 165
         });
 
         this.load.image('game_bg', '/Background1.png');
@@ -75,48 +71,48 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
-        // Define Animations
-        // Male (Row 3, Indices 26-38)
+        // Define Animations (normalized spritesheet: 13 cols x 2 rows)
+        // Male = Row 0 (indices 0-12): idle=0-3, run=4-10, death=12
         this.anims.create({
             key: 'male_idle',
-            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 26, end: 29 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 3 }),
             frameRate: 6,
             repeat: -1
         });
         
         this.anims.create({
             key: 'male_run',
-            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 30, end: 36 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 4, end: 10 }),
             frameRate: 10,
             repeat: -1
         });
 
         this.anims.create({
             key: 'male_death',
-            frames: this.anims.generateFrameNumbers('player_sheet_male', { start: 38, end: 38 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 12, end: 12 }),
             frameRate: 1,
             repeat: 0
         });
 
         // ── Female Animations ──────────────────────────────────────────────────
-        // Female (Row 4, Indices 36-47 in 12-col grid)
+        // Female = Row 1 (indices 13-25): idle=13-16, run=17-22, death=25
         this.anims.create({
             key: 'female_idle',
-            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 36, end: 39 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 13, end: 16 }),
             frameRate: 6,
             repeat: -1
         });
         
         this.anims.create({
             key: 'female_run',
-            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 40, end: 45 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 17, end: 22 }),
             frameRate: 10,
             repeat: -1
         });
 
         this.anims.create({
             key: 'female_death',
-            frames: this.anims.generateFrameNumbers('player_sheet_female', { start: 47, end: 47 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 25, end: 25 }),
             frameRate: 1,
             repeat: 0
         });
@@ -132,9 +128,13 @@ export default class BootScene extends Phaser.Scene {
         this.makeShieldSheet('shield_myth_raw', 'shield_myth', 1);
         this.makeShieldSheet('shield_legendary_raw', 'shield_legendary', 5);
 
+        const targetScene = new URLSearchParams(window.location.search).has('testbed')
+            ? 'AnimTestScene'
+            : 'MenuScene';
+
         this.cameras.main.fadeOut(300, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.scene.start('MenuScene');
+            this.scene.start(targetScene);
         });
     }
 

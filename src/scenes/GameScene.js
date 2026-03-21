@@ -143,7 +143,7 @@ export default class GameScene extends Phaser.Scene {
         this.playerContainer = this.add.container(px, py);
         
         // New Player Sprite logic
-        const spriteKey = gender === 'female' ? 'player_sheet_female' : 'player_sheet_male';
+        const spriteKey = 'player_sheet';
         this.playerSprite = this.add.sprite(0, -26, spriteKey).setScale(0.85).setOrigin(0.5, 0.5);
         this.playerSprite.play(`${gender}_idle`);
         this.playerContainer.add(this.playerSprite);
