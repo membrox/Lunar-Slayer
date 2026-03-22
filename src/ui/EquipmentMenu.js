@@ -37,7 +37,14 @@ export function showEquipmentMenu(scene) {
 
     // Current filter
     scene.currentEquipTab = scene.currentEquipTab || 'weapon';
-    scene.selectedInventoryId = scene.selectedInventoryId || 'wpn_01';
+    if (!scene.selectedInventoryId || !scene.equipment.inventory[scene.selectedInventoryId]) {
+        // Find first item in current tab
+        const first = Object.values(scene.equipment.inventory).find(invItem => {
+            const db = scene.equipment.getItemById(invItem.id);
+            return db && (scene.currentEquipTab === 'weapon' ? db.type === 'weapon' : true);
+        });
+        scene.selectedInventoryId = first ? first.id : 'wpn_u1';
+    }
 
     // ── Top Detail Panel ──────────────────────────────────────────────────
     renderDetailPanel(scene, panel);
@@ -102,13 +109,18 @@ export function showEquipmentMenu(scene) {
 }
 
 function renderDetailPanel(scene, panel) {
+    const detailBg = scene.add.rectangle(0, -250, 680, 280, 0x111122).setStrokeStyle(2, 0x444466);
+    panel.add(detailBg);
+
     const id = scene.selectedInventoryId;
     const invItem = scene.equipment.inventory[id];
     const dbItem = scene.equipment.getItemById(id);
-    if (!invItem || !dbItem) return;
-
-    const detailBg = scene.add.rectangle(0, -250, 680, 280, 0x111122).setStrokeStyle(2, 0x444466);
-    panel.add(detailBg);
+    
+    if (!invItem || !dbItem) {
+        const msg = scene.add.text(0, -250, 'Select an item to see details', { fontSize: '20px', fill: '#888' }).setOrigin(0.5);
+        panel.add(msg);
+        return;
+    }
 
     // Big Icon
     const rarity = RARITIES[dbItem.rarity];
