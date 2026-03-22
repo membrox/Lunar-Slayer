@@ -11,14 +11,23 @@ export function showEquipmentMenu(scene) {
     const w = scene.scale.width;
     const h = scene.scale.height;
 
-    const overlay = scene.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive();
-    const panel = scene.add.container(w / 2, h / 2);
+    const overlay = scene.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive().setDepth(2000);
+    const panel = scene.add.container(w / 2, h / 2).setDepth(2001);
 
     const bg = scene.add.rectangle(0, 0, 720, 900, 0x1a1a2e).setStrokeStyle(4, 0x444466);
-    const title = scene.add.text(0, -420, 'EQUIPMENT', { fontSize: '32px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
-    const closeBtn = scene.add.text(330, -420, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
+    const title = scene.add.text(0, -360, 'EQUIPMENT', { fontSize: '32px', fill: '#f1c40f', fontStyle: 'bold' }).setOrigin(0.5);
+    const closeBtn = scene.add.text(330, -355, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
 
-    panel.add([bg, title, closeBtn]);
+    // Show Enhancement Stones at the top right of the modal, next to close button
+    const stonesVal = scene.stats.enhancementStones || 0;
+    const stonesTxt = scene.add.text(280, -360, `🪨 ${stonesVal}`, { 
+        fontSize: '20px', 
+        fill: '#ecf0f1', 
+        fontStyle: 'bold',
+        stroke: '#000',
+        strokeThickness: 2
+    }).setOrigin(1, 0.5);
+    panel.add([bg, title, closeBtn, stonesTxt]);
 
     closeBtn.on('pointerdown', () => {
         overlay.destroy();
@@ -53,9 +62,12 @@ export function showEquipmentMenu(scene) {
     });
 
     // ── Bottom Action Buttons ─────────────────────────────────────────────
-    const summonBtn = scene.add.rectangle(-180, 320, 250, 60, 0xd35400).setInteractive();
-    scene.add.text(-180, 320, 'Summon', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-    panel.add(summonBtn);
+    const btnW = 210;
+    const btnY = 320;
+
+    const summonBtn = scene.add.rectangle(-230, btnY, btnW, 60, 0xd35400).setInteractive();
+    const summonTxt = scene.add.text(-230, btnY, 'Summon', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+    panel.add([summonBtn, summonTxt]);
     summonBtn.on('pointerdown', () => {
         overlay.destroy();
         panel.destroy();
@@ -63,11 +75,23 @@ export function showEquipmentMenu(scene) {
         scene.showSummonMenu();
     });
 
-    const enhanceAllBtn = scene.add.rectangle(180, 320, 250, 60, 0x27ae60).setInteractive();
-    const enhanceAllTxt = scene.add.text(180, 320, 'Enhance All', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+    const enhanceAllBtn = scene.add.rectangle(0, btnY, btnW, 60, 0x27ae60).setInteractive();
+    const enhanceAllTxt = scene.add.text(0, btnY, 'Enhance All', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
     panel.add([enhanceAllBtn, enhanceAllTxt]);
     enhanceAllBtn.on('pointerdown', () => {
-        if (scene.equipment.enhanceAll()) {
+        const res = scene.equipment.stoneEnhanceAll(scene.stats.enhancementStones);
+        if (res.changed) {
+            scene.stats.enhancementStones -= res.totalSpent;
+            refreshEquipmentMenu(scene, panel);
+            syncGameSceneStats(scene);
+        }
+    });
+
+    const mergeAllBtn = scene.add.rectangle(230, btnY, btnW, 60, 0x2980b9).setInteractive();
+    const mergeAllTxt = scene.add.text(230, btnY, 'Alle Verschmelzen', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+    panel.add([mergeAllBtn, mergeAllTxt]);
+    mergeAllBtn.on('pointerdown', () => {
+        if (scene.equipment.mergeAll()) {
             refreshEquipmentMenu(scene, panel);
             syncGameSceneStats(scene);
         }
@@ -91,7 +115,7 @@ function renderDetailPanel(scene, panel) {
     const iconBg = scene.add.rectangle(-250, -250, 140, 140, 0x000000, 0.5).setStrokeStyle(3, rarity.color);
     const icon = scene.add.text(-250, -260, dbItem.icon, { fontSize: '80px' }).setOrigin(0.5);
 
-    const lvlLabel = scene.add.text(-310, -195, `Lv.${invItem.level}`, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
+    const lvlLabel = scene.add.text(-310, -195, `Lv.${invItem.plusLevel || 0}`, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
 
     // Equipped marker
     if (scene.equipment.isEquipped(id)) {
@@ -105,17 +129,28 @@ function renderDetailPanel(scene, panel) {
 
     const posEffect = scene.add.text(-160, -280, 'Possession Effect:', { fontSize: '14px', fill: '#fa0' });
     let posStr = '';
-    Object.keys(dbItem.baseStats).forEach(k => {
-        posStr += `${k}: +${(dbItem.baseStats[k] * 0.01 * invItem.level).toFixed(1)}  `;
-    });
+    if (dbItem.type === 'weapon') {
+        const basePos = (dbItem.baseStats.attack || 0);
+        posStr = `Damage: +${(basePos * 1.0).toFixed(1)}%`;
+    } else {
+        Object.keys(dbItem.baseStats).forEach(k => {
+            posStr += `${k}: +${(dbItem.baseStats[k] * 0.01 * invItem.level).toFixed(1)}  `;
+        });
+    }
     const posVal = scene.add.text(-160, -260, posStr, { fontSize: '18px', fill: '#2ecc71' });
 
     const eqEffect = scene.add.text(-160, -220, 'Equipped Effect:', { fontSize: '14px', fill: '#fa0' });
     let eqStr = '';
-    const mult = 1 + (invItem.level - 1) * 0.2;
-    Object.keys(dbItem.baseStats).forEach(k => {
-        eqStr += `${k}: +${(dbItem.baseStats[k] * mult).toFixed(1)}  `;
-    });
+    if (dbItem.type === 'weapon') {
+        const baseEq = (dbItem.baseStats.attack || 0); // Base from item
+        const plusEq = (invItem.plusLevel || 0) * 5; // +5% per Gold level
+        eqStr = `Damage: +${(baseEq * 10.0).toFixed(1)}% (+${plusEq}% Enhance)`;
+    } else {
+        const mult = 1 + (invItem.level - 1) * 0.2;
+        Object.keys(dbItem.baseStats).forEach(k => {
+            eqStr += `${k}: +${(dbItem.baseStats[k] * mult).toFixed(1)}  `;
+        });
+    }
     const eqVal = scene.add.text(-160, -200, eqStr, { fontSize: '18px', fill: '#2ecc71' });
 
     // Action Buttons
@@ -134,22 +169,32 @@ function renderDetailPanel(scene, panel) {
         syncGameSceneStats(scene);
     });
 
+    // We removed individual Stone Enhancement from the Detail Panel as requested (1:1 Logic)
+    // But we still need a button for Synthesis (Verschmelzen)
     const enhanceBtn = scene.add.rectangle(150, -150, 180, 50, 0x27ae60).setInteractive();
-    const enhanceTxt = scene.add.text(150, -150, 'Enhance', { fontSize: '18px', fill: '#fff' }).setOrigin(0.5);
+    const canMerge = invItem.count >= 100 && dbItem.nextId;
+    const enhanceTxt = scene.add.text(150, -150, `Verschmelzen (100)`, { fontSize: '16px', fill: '#fff' }).setOrigin(0.5);
+    if (!canMerge) enhanceBtn.setAlpha(0.5);
+    
     enhanceBtn.on('pointerdown', () => {
-        if (scene.equipment.enhanceItem(id)) {
-            refreshEquipmentMenu(scene, panel);
-            syncGameSceneStats(scene);
+        if (canMerge) {
+            if (scene.equipment.mergeItem(id)) {
+                refreshEquipmentMenu(scene, panel);
+                syncGameSceneStats(scene);
+            }
+        } else {
+            // Optional: feedback why it failed
+            console.log("Need 100 copies for Synthesis!");
         }
     });
 
-    // Enhance Progress (Detail)
-    const cost = invItem.level * rarity.enhanceCost;
+    // Synthesis Progress (Detail)
+    const mergeCost = 100;
     const barW = 120;
     const xpBg = scene.add.rectangle(-250, -165, barW, 14, 0x000000).setOrigin(0.5);
-    const ratio = Math.min(1, invItem.count / cost);
+    const ratio = Math.min(1, invItem.count / mergeCost);
     const xpFill = scene.add.rectangle(-250 - barW / 2, -165, barW * ratio, 14, 0x3498db).setOrigin(0, 0.5);
-    const xpText = scene.add.text(-250, -150, `Need ${cost} total`, { fontSize: '12px', fill: '#fff' }).setOrigin(0.5);
+    const xpText = scene.add.text(-250, -150, `${invItem.count}/100 total`, { fontSize: '12px', fill: '#fff' }).setOrigin(0.5);
 
     panel.add([iconBg, icon, lvlLabel, name, rarityName, posEffect, posVal, eqEffect, eqVal, equipBtn, equipTxt, enhanceBtn, enhanceTxt, xpBg, xpFill, xpText]);
 }
@@ -162,8 +207,9 @@ function renderInventoryGrid(scene, panel) {
 
     const filtered = Object.values(scene.equipment.inventory).filter(invItem => {
         const db = scene.equipment.getItemById(invItem.id);
+        if (!db) return false;
         if (scene.currentEquipTab === 'weapon') return db.type === 'weapon';
-        if (scene.currentEquipTab === 'shield') return db.type === 'armor';
+        if (scene.currentEquipTab === 'shield') return db.type === 'shield' || db.type === 'armor';
         if (scene.currentEquipTab === 'necklace') return db.type === 'accessory' || db.type === 'ring';
         return false;
     });
@@ -179,10 +225,11 @@ function renderInventoryGrid(scene, panel) {
         const slot = scene.add.rectangle(x, y, 120, 120, 0x222233).setStrokeStyle(3, scene.selectedInventoryId === db.id ? 0xffffff : rarity.color).setInteractive();
         const icon = scene.add.text(x, y - 10, db.icon, { fontSize: '50px' }).setOrigin(0.5);
 
-        const lvl = scene.add.text(x - 50, y + 40, `Lv.${invItem.level}`, { fontSize: '14px', fill: '#fff' });
+        const lvl = scene.add.text(x - 50, y + 40, `Lv.${invItem.plusLevel || 0}`, { fontSize: '14px', fill: '#fff' });
+        // const plusTxt = scene.add.text(x + 20, y + 35, `+${invItem.plusLevel || 0}`, { fontSize: '18px', fill: '#2ecc71', fontStyle: 'bold' }); // Removing the extra badge to keep it clean as per "Lv.X" request
 
         // Enhance Progress Bar
-        const cost = invItem.level * rarity.enhanceCost;
+        const cost = rarity.enhanceCost; // 100 total
         const barW = 110;
         const pBg = scene.add.rectangle(x, y + 55, barW, 10, 0x000000);
         const ratio = Math.min(1, invItem.count / cost);

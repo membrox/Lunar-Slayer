@@ -342,6 +342,9 @@ export default class UIScene extends Phaser.Scene {
         if (this.goldText && this.goldText.active) this.goldText.setText(`${Math.floor(Number(stats.gold) || 0)}`);
         if (this.gemsText && this.gemsText.active) this.gemsText.setText(`${Number(stats.gems) || 0}`);
         if (this.emeraldsText && this.emeraldsText.active) this.emeraldsText.setText(`${Number(stats.emeralds) || 0}`);
+        
+        // Ensure enhancementStones is tracked even if not in main HUD
+        if (stats.enhancementStones === undefined) stats.enhancementStones = 0;
 
         const hp = Number(stats.hp) || 0;
         const maxHp = Number(stats.maxHp) || 100;

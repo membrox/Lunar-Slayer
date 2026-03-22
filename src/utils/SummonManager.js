@@ -8,12 +8,16 @@ export const SUMMON_CONFIG = {
 };
 
 export const BANNER_WEIGHTS = {
-    // Level 1: Common 90%, Rare 9%, Epic 1%
-    1: { COMMON: 900, RARE: 90, EPIC: 10, MYTHIC: 0 },
-    // Level 5: Common 70%, Rare 20%, Epic 8%, Mythic 2%
-    5: { COMMON: 700, RARE: 200, EPIC: 80, MYTHIC: 20 },
-    // Level 10: Common 50%, Rare 30%, Epic 15%, Mythic 5%
-    10: { COMMON: 500, RARE: 300, EPIC: 150, MYTHIC: 50 }
+    // Level 1: Uncommon 100%
+    1: { UNCOMMON: 1000, NORMAL: 0, MAGIC: 0, RARE: 0, EPIC: 0, LEGENDARY: 0, MYTH: 0 },
+    // Level 3: Uncommon 70%, Normal 25%, Magic 5%
+    3: { UNCOMMON: 700, NORMAL: 250, MAGIC: 50, RARE: 0, EPIC: 0, LEGENDARY: 0, MYTH: 0 },
+    // Level 5: Uncommon 50%, Normal 30%, Magic 15%, Rare 5%
+    5: { UNCOMMON: 500, NORMAL: 300, MAGIC: 150, RARE: 50, EPIC: 0, LEGENDARY: 0, MYTH: 0 },
+    // Level 7: Uncommon 30%, Normal 35%, Magic 20%, Rare 10%, Epic 5%
+    7: { UNCOMMON: 300, NORMAL: 350, MAGIC: 200, RARE: 100, EPIC: 50, LEGENDARY: 0, MYTH: 0 },
+    // Level 10: Uncommon 20%, Normal 30%, Magic 25%, Rare 15%, Epic 7%, Legendary 3%
+    10: { UNCOMMON: 200, NORMAL: 300, MAGIC: 250, RARE: 150, EPIC: 70, LEGENDARY: 30, MYTH: 0 }
 };
 
 export class SummonManager {
@@ -58,12 +62,11 @@ export class SummonManager {
         const lowW = BANNER_WEIGHTS[lower];
         const highW = BANNER_WEIGHTS[upper];
 
-        return {
-            COMMON: Math.floor(lowW.COMMON + (highW.COMMON - lowW.COMMON) * ratio),
-            RARE: Math.floor(lowW.RARE + (highW.RARE - lowW.RARE) * ratio),
-            EPIC: Math.floor(lowW.EPIC + (highW.EPIC - lowW.EPIC) * ratio),
-            MYTHIC: Math.floor(lowW.MYTHIC + (highW.MYTHIC - lowW.MYTHIC) * ratio)
-        };
+        const out = {};
+        Object.keys(lowW).forEach(rarity => {
+            out[rarity] = Math.floor(lowW[rarity] + (highW[rarity] - lowW[rarity]) * ratio);
+        });
+        return out;
     }
 
     pull(category, amount, currentGems) {
@@ -71,9 +74,21 @@ export class SummonManager {
         if (currentGems < cost) return { success: false, reason: 'Nicht genügend Gems!' };
 
         const banner = this.banners[category];
-        const weights = this.getInterpolatedWeights(banner.level);
-        const results = [];
+        let weights = this.getInterpolatedWeights(banner.level);
 
+        // Apply Batch Bonus (10 in a row or 30 in a row)
+        if (amount === 10 || amount === 30) {
+            const mult = amount === 10 ? 1.5 : 3.0;
+            weights = JSON.parse(JSON.stringify(weights));
+            // Boost all except lowest (UNCOMMON)
+            Object.keys(weights).forEach(k => {
+                if (k !== 'UNCOMMON' && weights[k] > 0) {
+                    weights[k] = Math.floor(weights[k] * mult);
+                }
+            });
+        }
+
+        const results = [];
         for (let i = 0; i < amount; i++) {
             results.push(this.rollItem(category, weights));
         }
@@ -90,14 +105,20 @@ export class SummonManager {
     }
 
     rollItem(category, weights) {
-        const total = weights.COMMON + weights.RARE + weights.EPIC + weights.MYTHIC;
+        const total = Object.values(weights).reduce((a, b) => a + b, 0);
         let roll = Math.random() * total;
-        let rarity = 'COMMON';
 
-        if (roll < weights.MYTHIC) rarity = 'MYTHIC';
-        else if (roll < weights.MYTHIC + weights.EPIC) rarity = 'EPIC';
-        else if (roll < weights.MYTHIC + weights.EPIC + weights.RARE) rarity = 'RARE';
-        else rarity = 'COMMON';
+        let rarity = 'UNCOMMON';
+        let acc = 0;
+        // Search from highest to lowest
+        const orderedRarities = ['MYTH', 'LEGENDARY', 'EPIC', 'RARE', 'MAGIC', 'NORMAL', 'UNCOMMON'];
+        for (const r of orderedRarities) {
+            acc += (weights[r] || 0);
+            if (roll < acc) {
+                rarity = r;
+                break;
+            }
+        }
 
         // Filter ITEM_DATABASE for matching type and rarity
         // If no mythic exists, fallback to epic, etc.

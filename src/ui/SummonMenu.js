@@ -12,8 +12,8 @@ export function showSummonMenu(scene) {
     const w = scene.scale.width;
     const h = scene.scale.height;
 
-    const overlay = scene.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive();
-    const panel = scene.add.container(w / 2, h / 2);
+    const overlay = scene.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.85).setInteractive().setDepth(2000);
+    const panel = scene.add.container(w / 2, h / 2).setDepth(2001);
 
     const bg = scene.add.rectangle(0, 0, 700, 520, 0x1a1a2e).setStrokeStyle(4, 0x554488);
     const title = scene.add.text(0, -230, 'SUMMONING', { fontSize: '36px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
@@ -51,12 +51,12 @@ function createSummonCard(scene, panel, cat, x, y) {
     // XP Bar
     const barW = 200;
     const barH = 10;
-    const xpRatio = data.xp / SUMMON_CONFIG.XP_TO_LEVEL;
+    const xpRatio = data.progress / SUMMON_CONFIG.PROGRESS_TO_LEVEL;
     const barX = x - cardW / 2 + 80;
     const barY = y + 15;
     const xpBg = scene.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000).setOrigin(0.5);
     const xpFill = scene.add.rectangle(barX, barY - barH / 2, barW * xpRatio, barH, 0xaa44ff).setOrigin(0, 0);
-    const xpText = scene.add.text(barX + barW + 10, barY, `${data.xp}/${SUMMON_CONFIG.XP_TO_LEVEL}`, { fontSize: '12px', fill: '#aaa' }).setOrigin(0, 0.5);
+    const xpText = scene.add.text(barX + barW + 10, barY, `${data.progress}/${SUMMON_CONFIG.PROGRESS_TO_LEVEL}`, { fontSize: '12px', fill: '#aaa' }).setOrigin(0, 0.5);
 
     panel.add([cardBg, icon, nameText, xpBg, xpFill, xpText]);
 

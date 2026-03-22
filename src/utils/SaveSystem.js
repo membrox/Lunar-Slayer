@@ -16,6 +16,7 @@ export class SaveSystem {
             critDamageLevel: 1,
             gems: 0,
             emeralds: 0,
+            enhancementStones: 0,
             stage: 1,
             maxStage: 1
         };
