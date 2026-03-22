@@ -14,10 +14,12 @@ export const BANNER_WEIGHTS = {
     3: { UNCOMMON: 700, NORMAL: 250, MAGIC: 50, RARE: 0, EPIC: 0, LEGENDARY: 0, MYTH: 0 },
     // Level 5: Uncommon 50%, Normal 30%, Magic 15%, Rare 5%
     5: { UNCOMMON: 500, NORMAL: 300, MAGIC: 150, RARE: 50, EPIC: 0, LEGENDARY: 0, MYTH: 0 },
-    // Level 7: Uncommon 30%, Normal 35%, Magic 20%, Rare 10%, Epic 5%
-    7: { UNCOMMON: 300, NORMAL: 350, MAGIC: 200, RARE: 100, EPIC: 50, LEGENDARY: 0, MYTH: 0 },
     // Level 10: Uncommon 20%, Normal 30%, Magic 25%, Rare 15%, Epic 7%, Legendary 3%
-    10: { UNCOMMON: 200, NORMAL: 300, MAGIC: 250, RARE: 150, EPIC: 70, LEGENDARY: 30, MYTH: 0 }
+    10: { UNCOMMON: 200, NORMAL: 300, MAGIC: 250, RARE: 150, EPIC: 70, LEGENDARY: 30, MYTH: 0 },
+    // Level 15: Unlock Legendary
+    15: { UNCOMMON: 100, NORMAL: 200, MAGIC: 250, RARE: 200, EPIC: 150, LEGENDARY: 100, MYTH: 0 },
+    // Level 20: Unlock Mythic
+    20: { UNCOMMON: 50, NORMAL: 100, MAGIC: 200, RARE: 250, EPIC: 200, LEGENDARY: 150, MYTH: 50 }
 };
 
 export class SummonManager {
@@ -93,15 +95,38 @@ export class SummonManager {
             results.push(this.rollItem(category, weights));
         }
 
+        // Force levels and progress to be numbers (handles legacy string data)
+        banner.level = Number(banner.level) || 1;
+        banner.progress = Number(banner.progress) || 0;
+
         // Increase progress
         banner.progress += amount * SUMMON_CONFIG.PULL_PROGRESS;
-        while (banner.progress >= SUMMON_CONFIG.PROGRESS_TO_LEVEL && banner.level < 10) {
-            banner.progress -= SUMMON_CONFIG.PROGRESS_TO_LEVEL;
-            banner.level++;
+        
+        // Recursive Level-Up Logic (Handles XP Overflow)
+        while (banner.level < 20) {
+            const req = this.getRequiredXP(banner.level);
+            if (banner.progress >= req) {
+                banner.progress -= req;
+                banner.level++;
+            } else {
+                break;
+            }
+        }
+        
+        // If at max level, cap progress display
+        if (banner.level >= 20) {
+            banner.progress = 0;
         }
 
         this.save();
         return { success: true, items: results, cost: cost };
+    }
+
+    getRequiredXP(level) {
+        if (level >= 20) return Infinity; // MAX level reached
+        if (level <= 5) return level * 100; // 100, 200, 300, 400, 500
+        if (level <= 10) return (level - 5) * 1000; // 1000, 2000, 3000, 4000, 5000
+        return 10000; // 10,000+ for level 11-15
     }
 
     rollItem(category, weights) {

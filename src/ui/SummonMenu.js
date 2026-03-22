@@ -51,12 +51,17 @@ function createSummonCard(scene, panel, cat, x, y) {
     // XP Bar
     const barW = 200;
     const barH = 10;
-    const xpRatio = data.progress / SUMMON_CONFIG.PROGRESS_TO_LEVEL;
+    const reqXP = scene.summonManager.getRequiredXP(data.level);
+    const isMax = data.level >= 20;
+    const xpRatio = isMax ? 1 : Math.min(1, data.progress / reqXP);
+    
     const barX = x - cardW / 2 + 80;
     const barY = y + 15;
     const xpBg = scene.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000).setOrigin(0.5);
     const xpFill = scene.add.rectangle(barX, barY - barH / 2, barW * xpRatio, barH, 0xaa44ff).setOrigin(0, 0);
-    const xpText = scene.add.text(barX + barW + 10, barY, `${data.progress}/${SUMMON_CONFIG.PROGRESS_TO_LEVEL}`, { fontSize: '12px', fill: '#aaa' }).setOrigin(0, 0.5);
+    
+    const xpLabel = isMax ? "MAX" : `${data.progress}/${reqXP}`;
+    const xpText = scene.add.text(barX + barW + 10, barY, xpLabel, { fontSize: '12px', fill: isMax ? '#f1c40f' : '#aaa', fontStyle: isMax ? 'bold' : 'normal' }).setOrigin(0, 0.5);
 
     panel.add([cardBg, icon, nameText, xpBg, xpFill, xpText]);
 
@@ -78,6 +83,8 @@ function createSummonCard(scene, panel, cat, x, y) {
 }
 
 function executeSummon(scene, category, amount) {
+    if (scene.isSummoningLock) return; // Prevent spamming/double clicks
+    
     const currentGems = Number(scene.stats.gems) || 0;
     const cost = amount === 10 ? SUMMON_CONFIG.COST_X10 : SUMMON_CONFIG.COST_X30;
 
@@ -85,6 +92,12 @@ function executeSummon(scene, category, amount) {
         scene.cameras.main.shake(100, 0.005);
         return;
     }
+
+    // Lock buttons for 0.2s
+    scene.isSummoningLock = true;
+    scene.time.delayedCall(200, () => {
+        scene.isSummoningLock = false;
+    });
 
     const pullRes = scene.summonManager.pull(category, amount, currentGems);
     if (pullRes.success) {
