@@ -3,7 +3,7 @@ import { SaveSystem } from './SaveSystem.js';
 export const RARITIES = {
     UNCOMMON: { name: 'Uncommon', color: 0x9e9e9e, colorStr: '#9e9e9e', enhanceCost: 100 },
     NORMAL: { name: 'Normal', color: 0x4caf50, colorStr: '#4caf50', enhanceCost: 100 },
-    MAGIC: { name: 'Magic', color: 0x2196f3, colorStr: '#2196f3', enhanceCost: 100 },
+    MAGIC: { name: 'Magic', color: 0xf1c40f, colorStr: '#f1c40f', enhanceCost: 100 },
     RARE: { name: 'Rare', color: 0x3498db, colorStr: '#3498db', enhanceCost: 100 },
     EPIC: { name: 'Epic', color: 0x9c27b0, colorStr: '#9c27b0', enhanceCost: 100 },
     LEGENDARY: { name: 'Legendary', color: 0xff9800, colorStr: '#ff9800', enhanceCost: 100 },

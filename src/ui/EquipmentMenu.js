@@ -97,7 +97,7 @@ export function showEquipmentMenu(scene) {
         }
     });
 
-    // ── Grid System ───────────────────────────────────────────────────────
+    // ── Grid System (Scrollable) ──────────────────────────────────────────
     renderInventoryGrid(scene, panel);
 }
 
@@ -209,9 +209,30 @@ function renderDetailPanel(scene, panel) {
 
 function renderInventoryGrid(scene, panel) {
     const gridStartX = -260;
-    const gridStartY = -50;
+    const gridStartY = 0; // Relative to scrollContainer
     const spacing = 130;
     const cols = 5;
+
+    // Scroll Area Constants
+    const maskY = -100;
+    const maskH = 390;
+    const maskW = 680;
+
+    // Create a container for the scrollable content
+    const scrollContainer = scene.add.container(0, 0);
+    panel.add(scrollContainer);
+
+    // Create a mask for the scroll area
+    const maskShape = scene.make.graphics();
+    maskShape.fillStyle(0xffffff);
+    maskShape.fillRect(
+        panel.x - maskW / 2, 
+        panel.y + maskY, 
+        maskW, 
+        maskH
+    );
+    const mask = maskShape.createGeometryMask();
+    scrollContainer.setMask(mask);
 
     const filtered = Object.values(scene.equipment.inventory).filter(invItem => {
         const db = scene.equipment.getItemById(invItem.id);
@@ -242,7 +263,6 @@ function renderInventoryGrid(scene, panel) {
         }
 
         const lvl = scene.add.text(x - 50, y + 40, `Lv.${invItem.plusLevel || 0}`, { fontSize: '14px', fill: '#fff' });
-        // const plusTxt = scene.add.text(x + 20, y + 35, `+${invItem.plusLevel || 0}`, { fontSize: '18px', fill: '#2ecc71', fontStyle: 'bold' }); // Removing the extra badge to keep it clean as per "Lv.X" request
 
         // Enhance Progress Bar
         const cost = rarity.enhanceCost; // 100 total
@@ -254,15 +274,71 @@ function renderInventoryGrid(scene, panel) {
 
         if (scene.equipment.isEquipped(db.id)) {
             const eColor = scene.add.text(x + 40, y - 50, 'E', { fontSize: '16px', fill: '#f00', backgroundColor: '#fff', padding: 2 });
-            panel.add(eColor);
+            scrollContainer.add(eColor);
         }
 
-        slot.on('pointerdown', () => {
-            scene.selectedInventoryId = db.id;
-            refreshEquipmentMenu(scene, panel);
+        slot.on('pointerdown', (pointer) => {
+            // Only select if it wasn't a significant drag
+            if (Math.abs(pointer.upX - pointer.downX) < 10 && Math.abs(pointer.upY - pointer.downY) < 10) {
+                scene.selectedInventoryId = db.id;
+                refreshEquipmentMenu(scene, panel);
+            }
         });
 
-        panel.add([slot, icon, lvl, pBg, pFill, pText]);
+        scrollContainer.add([slot, icon, lvl, pBg, pFill, pText]);
+    });
+
+    // Scrolling Logic
+    const rowCount = Math.ceil(filtered.length / cols);
+    const totalHeight = rowCount * spacing;
+    const minY = Math.min(0, maskH - totalHeight + 20); // allow some padding
+    const maxY = 0;
+
+    // Interactive zone for scrolling (the whole grid area)
+    const scrollZone = scene.add.rectangle(0, maskY + maskH / 2, maskW, maskH, 0x000000, 0).setInteractive();
+    panel.add(scrollZone);
+    panel.sendToBack(scrollZone); // below items but above panel bg
+
+    let startPointerY = 0;
+    let startScrollY = 0;
+    let isDragging = false;
+
+    scrollZone.on('pointerdown', (pointer) => {
+        startPointerY = pointer.y;
+        startScrollY = scrollContainer.y;
+        isDragging = true;
+    });
+
+    const onPointerMove = (pointer) => {
+        if (isDragging && pointer.isDown) {
+            const dy = pointer.y - startPointerY;
+            let targetY = startScrollY + dy;
+            targetY = Phaser.Math.Clamp(targetY, minY, maxY);
+            scrollContainer.y = targetY;
+        }
+    };
+
+    const onPointerUp = () => {
+        isDragging = false;
+    };
+
+    scene.input.on('pointermove', onPointerMove);
+    scene.input.on('pointerup', onPointerUp);
+
+    // Mouse wheel support
+    const onWheel = (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+        if (!scene.isEquipmentOpen) return;
+        let targetY = scrollContainer.y - deltaY;
+        targetY = Phaser.Math.Clamp(targetY, minY, maxY);
+        scrollContainer.y = targetY;
+    };
+    scene.input.on('wheel', onWheel);
+
+    // Clean up listeners when menu closes
+    panel.on('destroy', () => {
+        scene.input.off('pointermove', onPointerMove);
+        scene.input.off('pointerup', onPointerUp);
+        scene.input.off('wheel', onWheel);
     });
 }
 
