@@ -1,42 +1,69 @@
 import { SaveSystem } from './SaveSystem.js';
 
 export const RARITIES = {
-    NORMAL: { name: 'Normal', color: 0x9e9e9e, colorStr: '#9e9e9e', enhanceCost: 100 },
-    UNCOMMON: { name: 'Uncommon', color: 0x4caf50, colorStr: '#4caf50', enhanceCost: 100 },
+    UNCOMMON: { name: 'Uncommon', color: 0x9e9e9e, colorStr: '#9e9e9e', enhanceCost: 100 },
+    NORMAL: { name: 'Normal', color: 0x4caf50, colorStr: '#4caf50', enhanceCost: 100 },
     MAGIC: { name: 'Magic', color: 0x2196f3, colorStr: '#2196f3', enhanceCost: 100 },
-    RARE: { name: 'Rare', color: 0x2196f3, colorStr: '#2196f3', enhanceCost: 100 },
+    RARE: { name: 'Rare', color: 0x3498db, colorStr: '#3498db', enhanceCost: 100 },
     EPIC: { name: 'Epic', color: 0x9c27b0, colorStr: '#9c27b0', enhanceCost: 100 },
     LEGENDARY: { name: 'Legendary', color: 0xff9800, colorStr: '#ff9800', enhanceCost: 100 },
     MYTH: { name: 'Myth', color: 0xff00ff, colorStr: '#ff00ff', enhanceCost: 100 }
 };
 
 export const ITEM_DATABASE = [
-    // Wood Series
-    { id: 'wpn_01', name: 'Holzstab', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_02', baseStats: { attack: 1 }, flavor: 'Ein einfacher Stock.', icon: '🪄' },
-    { id: 'wpn_02', name: 'Holzstab', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_03', baseStats: { attack: 5 }, flavor: 'Etwas stabiler.', icon: '🪄' },
-    { id: 'wpn_03', name: 'Mondstab', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_04', baseStats: { attack: 20 }, flavor: 'Kanalisiert Mondlicht.', icon: '🌙' },
-    { id: 'wpn_04', name: 'Sonnenstab', type: 'weapon', rarity: 'RARE', nextId: 'wpn_05', baseStats: { attack: 100 }, flavor: 'Brennt mit Solarenergie.', icon: '☀️' },
-    { id: 'wpn_05', name: 'Sternenstab', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_06', baseStats: { attack: 500 }, flavor: 'Aus Sternenstaub geformt.', icon: '✨' },
-    { id: 'wpn_06', name: 'Excalibur', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_07', baseStats: { attack: 2000 }, flavor: 'Das legendäre Schwert.', icon: '🗡️' },
-    { id: 'wpn_07', name: 'Mjölnir', type: 'weapon', rarity: 'MYTH', nextId: null, baseStats: { attack: 10000 }, flavor: 'Hammer der Götter.', icon: '🔨' },
+    // --- WEAPONS (35 Items) ---
+    // UNCOMMON (weapon_uncommon)
+    { id: 'wpn_u1', name: 'Rostiges Schwert', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_u2', baseStats: { attack: 2 }, texture: 'weapon_uncommon', frame: 0 },
+    { id: 'wpn_u2', name: 'Grobes Beil', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_u3', baseStats: { attack: 4 }, texture: 'weapon_uncommon', frame: 1 },
+    { id: 'wpn_u3', name: 'Abgenutzter Stab', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_u4', baseStats: { attack: 6 }, texture: 'weapon_uncommon', frame: 2 },
+    { id: 'wpn_u4', name: 'Einfacher Dolch', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_u5', baseStats: { attack: 8 }, texture: 'weapon_uncommon', frame: 3 },
+    { id: 'wpn_u5', name: 'Holzhammer', type: 'weapon', rarity: 'UNCOMMON', nextId: 'wpn_n1', baseStats: { attack: 10 }, texture: 'weapon_uncommon', frame: 4 },
 
-    // Linen Series
+    // NORMAL (weapon_normal)
+    { id: 'wpn_n1', name: 'Eisenschwert', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_n2', baseStats: { attack: 25 }, texture: 'weapon_normal', frame: 0 },
+    { id: 'wpn_n2', name: 'Kriegsaxt', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_n3', baseStats: { attack: 35 }, texture: 'weapon_normal', frame: 1 },
+    { id: 'wpn_n3', name: 'Lehrlingsstab', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_n4', baseStats: { attack: 45 }, texture: 'weapon_normal', frame: 2 },
+    { id: 'wpn_n4', name: 'Jagdmesser', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_n5', baseStats: { attack: 55 }, texture: 'weapon_normal', frame: 3 },
+    { id: 'wpn_n5', name: 'Steinhammer', type: 'weapon', rarity: 'NORMAL', nextId: 'wpn_m1', baseStats: { attack: 75 }, texture: 'weapon_normal', frame: 4 },
+
+    // MAGIC (weapon_magic)
+    { id: 'wpn_m1', name: 'Runenklinge', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_m2', baseStats: { attack: 150 }, texture: 'weapon_magic', frame: 0 },
+    { id: 'wpn_m2', name: 'Frostaxt', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_m3', baseStats: { attack: 200 }, texture: 'weapon_magic', frame: 1 },
+    { id: 'wpn_m3', name: 'Magierfokus', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_m4', baseStats: { attack: 250 }, texture: 'weapon_magic', frame: 2 },
+    { id: 'wpn_m4', name: 'Schattenklinge', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_m5', baseStats: { attack: 300 }, texture: 'weapon_magic', frame: 3 },
+    { id: 'wpn_m5', name: 'Donnerhammer', type: 'weapon', rarity: 'MAGIC', nextId: 'wpn_r1', baseStats: { attack: 450 }, texture: 'weapon_magic', frame: 4 },
+
+    // RARE (weapon_rare)
+    { id: 'wpn_r1', name: 'Himmelsspalter', type: 'weapon', rarity: 'RARE', nextId: 'wpn_r2', baseStats: { attack: 1000 }, texture: 'weapon_rare', frame: 0 },
+    { id: 'wpn_r2', name: 'Phönixbeil', type: 'weapon', rarity: 'RARE', nextId: 'wpn_r3', baseStats: { attack: 1500 }, texture: 'weapon_rare', frame: 1 },
+    { id: 'wpn_r3', name: 'Arkaner Stab', type: 'weapon', rarity: 'RARE', nextId: 'wpn_r4', baseStats: { attack: 2000 }, texture: 'weapon_rare', frame: 2 },
+    { id: 'wpn_r4', name: 'Drachenzahn', type: 'weapon', rarity: 'RARE', nextId: 'wpn_r5', baseStats: { attack: 2500 }, texture: 'weapon_rare', frame: 3 },
+    { id: 'wpn_r5', name: 'Titanenhammer', type: 'weapon', rarity: 'RARE', nextId: 'wpn_e1', baseStats: { attack: 3500 }, texture: 'weapon_rare', frame: 4 },
+
+    // EPIC (weapon_epic)
+    { id: 'wpn_e1', name: 'Dämonentöter', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_e2', baseStats: { attack: 10000 }, texture: 'weapon_epic', frame: 0 },
+    { id: 'wpn_e2', name: 'Vortexaxt', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_e3', baseStats: { attack: 15000 }, texture: 'weapon_epic', frame: 1 },
+    { id: 'wpn_e3', name: 'Sternenzorn', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_e4', baseStats: { attack: 20000 }, texture: 'weapon_epic', frame: 2 },
+    { id: 'wpn_e4', name: 'Leerenklinge', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_e5', baseStats: { attack: 25000 }, texture: 'weapon_epic', frame: 3 },
+    { id: 'wpn_e5', name: 'Götterdämmerung', type: 'weapon', rarity: 'EPIC', nextId: 'wpn_l1', baseStats: { attack: 35000 }, texture: 'weapon_epic', frame: 4 },
+
+    // LEGENDARY (weapon_legendary_a/b)
+    { id: 'wpn_l1', name: 'Excalibur', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_l2', baseStats: { attack: 100000 }, texture: 'weapon_legendary_a', frame: 0 },
+    { id: 'wpn_l2', name: 'Ragnarök', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_l3', baseStats: { attack: 150000 }, texture: 'weapon_legendary_a', frame: 1 },
+    { id: 'wpn_l3', name: 'Yggdrasil-Zweig', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_l4', baseStats: { attack: 200000 }, texture: 'weapon_legendary_a', frame: 2 },
+    { id: 'wpn_l4', name: 'Drachentöter', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_l5', baseStats: { attack: 250000 }, texture: 'weapon_legendary_b', frame: 0 },
+    { id: 'wpn_l5', name: 'Mjölnir', type: 'weapon', rarity: 'LEGENDARY', nextId: 'wpn_y1', baseStats: { attack: 350000 }, texture: 'weapon_legendary_b', frame: 1 },
+
+    // MYTH (weapon_myth)
+    { id: 'wpn_y1', name: 'Lunarklinge', type: 'weapon', rarity: 'MYTH', nextId: 'wpn_y2', baseStats: { attack: 1000000 }, texture: 'weapon_myth', frame: 0 },
+    { id: 'wpn_y2', name: 'Ewiger Zorn', type: 'weapon', rarity: 'MYTH', nextId: 'wpn_y3', baseStats: { attack: 1500000 }, texture: 'weapon_myth', frame: 1 },
+    { id: 'wpn_y3', name: 'Kosmischer Stab', type: 'weapon', rarity: 'MYTH', nextId: 'wpn_y4', baseStats: { attack: 2000000 }, texture: 'weapon_myth', frame: 2 },
+    { id: 'wpn_y4', name: 'Sternenlicht', type: 'weapon', rarity: 'MYTH', nextId: 'wpn_y5', baseStats: { attack: 2500000 }, texture: 'weapon_myth', frame: 3 },
+    { id: 'wpn_y5', name: 'Weltuntergang', type: 'weapon', rarity: 'MYTH', nextId: null, baseStats: { attack: 5000000 }, texture: 'weapon_myth', frame: 4 },
+
+    // --- OTHER ITEMS ---
     { id: 'arm_01', name: 'Leinenrobe', type: 'armor', rarity: 'UNCOMMON', nextId: 'arm_02', baseStats: { hp: 20, defense: 2 }, flavor: 'Einfacher Stoff.', icon: '🧥' },
-    { id: 'arm_02', name: 'Magierrobe', type: 'armor', rarity: 'NORMAL', nextId: 'arm_03', baseStats: { hp: 100, defense: 10 }, flavor: 'Verstärkte Robe.', icon: '👘' },
-    { id: 'arm_03', name: 'Geisterrobe', type: 'armor', rarity: 'MAGIC', nextId: 'arm_04', baseStats: { hp: 500, defense: 50 }, flavor: 'Leicht wie Luft.', icon: '🌬️' },
-    { id: 'arm_04', name: 'Drachenrobe', type: 'armor', rarity: 'RARE', nextId: null, baseStats: { hp: 2000, defense: 200 }, flavor: 'Aus Drachenschuppen.', icon: '🐲' },
-
-    // Ring Series
-    { id: 'ring_01', name: 'Glücksring', type: 'ring', rarity: 'NORMAL', nextId: 'ring_02', baseStats: { crit: 0.05 }, flavor: 'Fühlt sich gut an.', icon: '💍' },
-    { id: 'ring_02', name: 'Manaring', type: 'ring', rarity: 'MAGIC', nextId: null, baseStats: { mana: 30 }, flavor: 'Leuchtet schwach.', icon: '💍' },
-
-    // Shield Series
-    { id: 'shd_01', name: 'Holzschild', type: 'shield', rarity: 'UNCOMMON', nextId: 'shd_02', baseStats: { defense: 5 }, flavor: 'Splittert leicht.', icon: '🛡️' },
-    { id: 'shd_02', name: 'Ritterschild', type: 'shield', rarity: 'MAGIC', nextId: null, baseStats: { defense: 20, hp: 50 }, flavor: 'Stabile Verteidigung.', icon: '🛡️' },
-
-    // Amulet Series
-    { id: 'amu_01', name: 'Lebensamulett', type: 'accessory', rarity: 'MAGIC', nextId: 'amu_02', baseStats: { hp: 100 }, flavor: 'Pulsierende Energie.', icon: '📿' },
-    { id: 'amu_02', name: 'Goldkette', type: 'accessory', rarity: 'EPIC', nextId: null, baseStats: { attack: 10, crit: 0.05 }, flavor: 'Sehr wertvoll.', icon: '🔱' }
+    { id: 'shd_01', name: 'Holzschild', type: 'shield', rarity: 'UNCOMMON', nextId: 'shd_02', baseStats: { defense: 5 }, flavor: 'Splittert leicht.', icon: '🛡️' }
 ];
 
 export class EquipmentManager {
@@ -76,9 +103,9 @@ export class EquipmentManager {
         const totalItemsOwned = Object.values(this.inventory).reduce((sum, item) => sum + item.count, 0);
         if (totalItemsOwned === 0 && Object.values(this.equipped).every(v => v === null)) {
             console.log('Fresh start: Adding and equipping starter items');
-            this.addItemById('wpn_01');
+            this.addItemById('wpn_u1');
             this.addItemById('arm_01');
-            this.equip('wpn_01', 'weapon');
+            this.equip('wpn_u1', 'weapon');
             this.equip('arm_01', 'armor');
         }
     }

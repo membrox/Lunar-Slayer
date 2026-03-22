@@ -140,13 +140,30 @@ function showSummonResults(scene, items) {
 
         const rarityInfo = RARITIES[item.rarity];
         const itemBg = scene.add.rectangle(ix, iy, 75, 75, 0x222233).setStrokeStyle(2, rarityInfo.color).setScale(0);
-        const icon = scene.add.text(ix, iy, item.icon, { fontSize: '32px' }).setOrigin(0.5).setScale(0);
+        
+        let icon;
+        let targetScale = 1;
+        if (item.texture) {
+            icon = scene.add.sprite(ix, iy, item.texture, item.frame).setOrigin(0.5).setScale(0);
+            // Based on 1024px height, scale to ~60px
+            targetScale = 60 / 1024;
+        } else {
+            icon = scene.add.text(ix, iy, item.icon, { fontSize: '32px' }).setOrigin(0.5).setScale(0);
+        }
 
         container.add([itemBg, icon]);
 
         scene.tweens.add({
-            targets: [itemBg, icon],
+            targets: itemBg,
             scale: 1,
+            duration: 300,
+            delay: i * 50,
+            ease: 'Back.Out'
+        });
+
+        scene.tweens.add({
+            targets: icon,
+            scale: targetScale,
             duration: 300,
             delay: i * 50,
             ease: 'Back.Out'

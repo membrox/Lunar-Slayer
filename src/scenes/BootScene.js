@@ -68,6 +68,16 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('icon_crit_rate', '/Skull_Strike_round.png');
         this.load.image('icon_crit_dmg', '/Critical_Damage_round.png');
         this.load.image('stage_header', '/Stagesv2.png');
+        
+        // Load Weapon Assets
+        this.load.image('weapon_uncommon_raw', '/Weapon uncommon.png');
+        this.load.image('weapon_normal_raw', '/Weapon normal.png');
+        this.load.image('weapon_magic_raw', '/Weapon Magic.png');
+        this.load.image('weapon_rare_raw', '/Weapon Rare.png');
+        this.load.image('weapon_epic_raw', '/Weapon epic.png');
+        this.load.image('weapon_legendary_a_raw', '/Weapon Legendary1-3.png');
+        this.load.image('weapon_legendary_b_raw', '/Weapon Legendary 4-5.png');
+        this.load.image('weapon_myth_raw', '/Weapon Myth.png');
     }
 
     create() {
@@ -128,6 +138,16 @@ export default class BootScene extends Phaser.Scene {
         this.makeShieldSheet('shield_myth_raw', 'shield_myth', 1);
         this.makeShieldSheet('shield_legendary_raw', 'shield_legendary', 5);
 
+        // Process Weapon Spritesheets (5 frames each, except legendary which is split)
+        this.makeWeaponSheet('weapon_uncommon_raw', 'weapon_uncommon', 5);
+        this.makeWeaponSheet('weapon_normal_raw', 'weapon_normal', 5);
+        this.makeWeaponSheet('weapon_magic_raw', 'weapon_magic', 5);
+        this.makeWeaponSheet('weapon_rare_raw', 'weapon_rare', 5);
+        this.makeWeaponSheet('weapon_epic_raw', 'weapon_epic', 5);
+        this.makeWeaponSheet('weapon_legendary_a_raw', 'weapon_legendary_a', 3);
+        this.makeWeaponSheet('weapon_legendary_b_raw', 'weapon_legendary_b', 2);
+        this.makeWeaponSheet('weapon_myth_raw', 'weapon_myth', 5);
+
         const params = new URLSearchParams(window.location.search);
         let targetScene = 'MenuScene';
         if (params.has('uitestbed')) targetScene = 'UIPlacementTestScene';
@@ -137,6 +157,11 @@ export default class BootScene extends Phaser.Scene {
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.scene.start(targetScene);
         });
+    }
+
+    makeWeaponSheet(sourceKey, targetKey, frames) {
+        // Reuse shield logic for weapons, ensuring we have a separate method for clarity if needed
+        this.makeShieldSheet(sourceKey, targetKey, frames);
     }
 
     makeShieldSheet(sourceKey, targetKey, frames) {

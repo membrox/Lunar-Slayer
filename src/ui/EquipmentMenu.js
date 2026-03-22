@@ -113,7 +113,15 @@ function renderDetailPanel(scene, panel) {
     // Big Icon
     const rarity = RARITIES[dbItem.rarity];
     const iconBg = scene.add.rectangle(-250, -250, 140, 140, 0x000000, 0.5).setStrokeStyle(3, rarity.color);
-    const icon = scene.add.text(-250, -260, dbItem.icon, { fontSize: '80px' }).setOrigin(0.5);
+    
+    let icon;
+    if (dbItem.texture) {
+        icon = scene.add.sprite(-250, -250, dbItem.texture, dbItem.frame).setOrigin(0.5);
+        // Scale vertical weapon sprite (1024px height) to fit details panel (~160px height)
+        icon.setScale(160 / 1024);
+    } else {
+        icon = scene.add.text(-250, -260, dbItem.icon, { fontSize: '80px' }).setOrigin(0.5);
+    }
 
     const lvlLabel = scene.add.text(-310, -195, `Lv.${invItem.plusLevel || 0}`, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
 
@@ -223,7 +231,15 @@ function renderInventoryGrid(scene, panel) {
 
         const rarity = RARITIES[db.rarity];
         const slot = scene.add.rectangle(x, y, 120, 120, 0x222233).setStrokeStyle(3, scene.selectedInventoryId === db.id ? 0xffffff : rarity.color).setInteractive();
-        const icon = scene.add.text(x, y - 10, db.icon, { fontSize: '50px' }).setOrigin(0.5);
+        
+        let icon;
+        if (db.texture) {
+            icon = scene.add.sprite(x, y, db.texture, db.frame).setOrigin(0.5);
+            // Scale vertical weapon sprite to fit grid slot (~100px height)
+            icon.setScale(100 / 1024);
+        } else {
+            icon = scene.add.text(x, y - 10, db.icon, { fontSize: '50px' }).setOrigin(0.5);
+        }
 
         const lvl = scene.add.text(x - 50, y + 40, `Lv.${invItem.plusLevel || 0}`, { fontSize: '14px', fill: '#fff' });
         // const plusTxt = scene.add.text(x + 20, y + 35, `+${invItem.plusLevel || 0}`, { fontSize: '18px', fill: '#2ecc71', fontStyle: 'bold' }); // Removing the extra badge to keep it clean as per "Lv.X" request
