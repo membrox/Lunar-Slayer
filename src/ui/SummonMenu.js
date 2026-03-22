@@ -19,11 +19,10 @@ export function showSummonMenu(scene) {
     const title = scene.add.text(0, -230, 'SUMMONING', { fontSize: '36px', fill: '#FFD700', fontStyle: 'bold' }).setOrigin(0.5);
 
     const closeBtn = scene.add.text(320, -230, '✕', { fontSize: '28px', fill: '#ff4444' }).setOrigin(0.5).setInteractive();
-    closeBtn.on('pointerdown', () => {
-        overlay.destroy();
-        panel.destroy();
-        scene.isSummonOpen = false;
-    });
+    closeBtn.on('pointerdown', () => closeSummonMenu(scene));
+
+    scene.summonMenuOverlay = overlay;
+    scene.summonMenuPanel = panel;
 
     panel.add([bg, title, closeBtn]);
 
@@ -111,6 +110,7 @@ function executeSummon(scene, category, amount) {
         });
         scene.equipment.save();
 
+        closeSummonMenu(scene);
         showSummonResults(scene, pullRes.items);
     }
 }
@@ -156,7 +156,21 @@ function showSummonResults(scene, items) {
     okBtn.on('pointerdown', () => {
         overlay.destroy();
         container.destroy();
-        scene.isSummonOpen = false;
         showSummonMenu(scene);
     });
+}
+
+/**
+ * Ensures the summon menu is closed and references are cleared.
+ */
+export function closeSummonMenu(scene) {
+    if (scene.summonMenuOverlay) {
+        scene.summonMenuOverlay.destroy();
+        scene.summonMenuOverlay = null;
+    }
+    if (scene.summonMenuPanel) {
+        scene.summonMenuPanel.destroy();
+        scene.summonMenuPanel = null;
+    }
+    scene.isSummonOpen = false;
 }
