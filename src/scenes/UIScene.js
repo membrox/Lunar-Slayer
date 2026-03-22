@@ -45,21 +45,38 @@ export default class UIScene extends Phaser.Scene {
         this.hudBanner = this.add.image(0, 0, 'hud_banner').setOrigin(0.5).setDisplaySize(Math.min(w * 0.95, 1000), bannerH);
 
         // Gold
-        this.goldText = this.add.text(-36, 13, `${Math.floor(this.stats.gold)}`, {
+        this.goldText = this.add.text(2, 14, `${Math.floor(this.stats.gold)}`, {
             fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(0, 0.5);
+        }).setOrigin(1, 0.5);
 
         // Gems
-        this.gemsText = this.add.text(109, 13, `${this.stats.gems || 0}`, {
+        this.gemsText = this.add.text(149, 13, `${this.stats.gems || 0}`, {
             fontSize: '18px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(0, 0.5);
+        }).setOrigin(1, 0.5);
 
         // Emeralds
-        this.emeraldsText = this.add.text(252, 13, `${this.stats.emeralds || 0}`, {
+        this.emeraldsText = this.add.text(285, 14, `${this.stats.emeralds || 0}`, {
             fontSize: '18px', fill: '#00ff00', fontStyle: 'bold', fontFamily: 'Arial'
-        }).setOrigin(0, 0.5);
+        }).setOrigin(1, 0.5);
 
         this.hudContainer.add([this.hudBanner, this.goldText, this.gemsText, this.emeraldsText]);
+        
+        // Register HUD elements in placement system
+        this.placementElements['goldText'] = {
+            obj: this.goldText,
+            containerWorldX: w / 2, containerWorldY: 50,
+            type: 'hud'
+        };
+        this.placementElements['gemsText'] = {
+            obj: this.gemsText,
+            containerWorldX: w / 2, containerWorldY: 50,
+            type: 'hud'
+        };
+        this.placementElements['emeraldsText'] = {
+            obj: this.emeraldsText,
+            containerWorldX: w / 2, containerWorldY: 50,
+            type: 'hud'
+        };
 
         // ── Stage Header ──────────────────────────────────────────────────────
         const headerY = 180;
@@ -458,6 +475,11 @@ export default class UIScene extends Phaser.Scene {
                 if (el.type === 'nav') {
                     const innerX = saved.x - el.containerWorldX - el.btnRelX;
                     const innerY = saved.y - el.containerWorldY - el.btnRelY;
+                    el.obj.setPosition(innerX, innerY);
+                    if (saved.scaleX !== undefined) el.obj.setScale(saved.scaleX, saved.scaleY);
+                } else if (el.type === 'hud') {
+                    const innerX = saved.x - el.containerWorldX;
+                    const innerY = saved.y - el.containerWorldY;
                     el.obj.setPosition(innerX, innerY);
                     if (saved.scaleX !== undefined) el.obj.setScale(saved.scaleX, saved.scaleY);
                 } else if (el.type === 'upgrade') {

@@ -44,6 +44,41 @@ export default class UIPlacementTestScene extends Phaser.Scene {
 
         this.dashContainer.add([mainDash, hudBottom]);
 
+        // ── HUD Banner (Top) ──────────────────────────────────────────────────
+        const hudY = 50;
+        this.hudContainer = this.add.container(w / 2, hudY);
+        const hudBanner = this.add.image(0, 0, 'hud_banner')
+            .setOrigin(0.5)
+            .setDisplaySize(Math.min(w * 0.95, 1000), 100);
+        this.hudContainer.add(hudBanner);
+
+        // Gold
+        const goldTxt = this.add.text(0, 0, '1234567', {
+            fontSize: '18px', fill: '#FFD700', fontStyle: 'bold', fontFamily: 'Arial'
+        }).setOrigin(1, 0.5);
+        const goldWorldX = w / 2 + 2;
+        const goldWorldY = hudY + 14;
+        goldTxt.setPosition(goldWorldX, goldWorldY);
+        this.registerElement('goldText', goldTxt, goldWorldX, goldWorldY);
+
+        // Gems
+        const gemsTxt = this.add.text(0, 0, '99999', {
+            fontSize: '18px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
+        }).setOrigin(1, 0.5);
+        const gemsWorldX = w / 2 + 149;
+        const gemsWorldY = hudY + 13;
+        gemsTxt.setPosition(gemsWorldX, gemsWorldY);
+        this.registerElement('gemsText', gemsTxt, gemsWorldX, gemsWorldY);
+
+        // Emeralds
+        const emeraldsTxt = this.add.text(0, 0, '88888', {
+            fontSize: '18px', fill: '#00ff00', fontStyle: 'bold', fontFamily: 'Arial'
+        }).setOrigin(1, 0.5);
+        const emeraldsWorldX = w / 2 + 285;
+        const emeraldsWorldY = hudY + 14;
+        emeraldsTxt.setPosition(emeraldsWorldX, emeraldsWorldY);
+        this.registerElement('emeraldsText', emeraldsTxt, emeraldsWorldX, emeraldsWorldY);
+
         // ── Skill Row (Auto + 6 Skills) ──────────────────────────────────────
         const relSkillY = -256;   // same as UIScene
         const sW = 84;
@@ -254,7 +289,7 @@ export default class UIPlacementTestScene extends Phaser.Scene {
     // ── Control Panel ────────────────────────────────────────────────────────
     buildControlPanel() {
         const w = this.scale.width;
-        const panelY = 30;
+        const panelY = 450; // Moved down from 30 to avoid HUD overlap
 
         // Semi-transparent background for panel (taller to fit input row)
         const panelBg = this.add.rectangle(w / 2, panelY + 70, w, 180, 0x000000, 0.85)
@@ -330,7 +365,7 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         this.inputContainer.id = 'ui-placement-inputs';
         this.inputContainer.style.cssText = `
             position: absolute;
-            top: ${canvasRect.top + 20}px;
+            top: ${canvasRect.top + 450}px;
             left: ${canvasRect.left}px;
             width: ${canvasRect.width}px;
             display: flex;
@@ -410,7 +445,7 @@ export default class UIPlacementTestScene extends Phaser.Scene {
         // Reposition on resize
         this.scale.on('resize', () => {
             const rect = this.game.canvas.getBoundingClientRect();
-            this.inputContainer.style.top = `${rect.top + 20}px`;
+            this.inputContainer.style.top = `${rect.top + 450}px`;
             this.inputContainer.style.left = `${rect.left}px`;
             this.inputContainer.style.width = `${rect.width}px`;
         });
